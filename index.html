@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1a1a2e">
+<title>计数助手</title>
+<style>
+/* ============ CSS Variables ============ */
+:root {
+  --bg: #f0f2f5;
+  --card-bg: #ffffff;
+  --text: #1a1a2e;
+  --text-secondary: #6b7280;
+  --accent: #4f46e5;
+  --danger: #ef4444;
+  --border: #e5e7eb;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --font-size: 16px;
+  --nav-height: 64px;
+  --topbar-height: 56px;
+  --transition: 0.2s ease;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  font-size: var(--font-size);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* ============ App Shell ============ */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg);
+  position: relative;
+}
+
+/* ============ Top Bar ============ */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  height: var(--topbar-height);
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.topbar-left { display:flex; flex-direction:column; }
+.topbar-date { font-size:13px; color:var(--text-secondary); }
+.topbar-total { font-size:18px; font-weight:700; }
+.topbar-right { display:flex; gap:16px; text-align:right; }
+.topbar-stat-label { font-size:11px; color:var(--text-secondary); }
+.topbar-stat-val { font-size:16px; font-weight:600; }
+
+/* ============ Page Container ============ */
+.page { display:none; flex-direction:column; flex:1; overflow:hidden; }
+.page.active { display:flex; }
+
+/* ============ Count Page (Tab 1) ============ */
+.grid-container {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  grid-auto-rows: 1fr;
+}
+.grid-container.grid-5  { grid-template-columns: repeat(2, 1fr); }
+.grid-container.grid-10 { grid-template-columns: repeat(2, 1fr); }
+.grid-container.grid-15 { grid-template-columns: repeat(3, 1fr); }
+.grid-container.grid-20 { grid-template-columns: repeat(4, 1fr); }
+
+.product-btn {
+  position: relative;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  transition: transform var(--transition), box-shadow var(--transition);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  overflow: hidden;
+  min-height: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.product-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.product-btn .btn-name {
+  font-size: calc(var(--font-size) * 0.9);
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90%;
+}
+.product-btn .btn-count {
+  font-size: calc(var(--font-size) * 1.8);
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.product-btn .btn-revenue {
+  font-size: calc(var(--font-size) * 0.65);
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.product-btn .btn-price-tag {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: calc(var(--font-size) * 0.55);
+  opacity: 0.7;
+  background: rgba(255,255,255,0.2);
+  padding: 1px 5px;
+  border-radius: 8px;
+}
+/* flash feedback */
+.product-btn.flash-inc { animation: flashGreen 0.2s ease; }
+.product-btn.flash-dec { animation: flashRed 0.2s ease; }
+@keyframes flashGreen {
+  0%,100% { filter:brightness(1); }
+  50% { filter:brightness(1.4); }
+}
+@keyframes flashRed {
+  0%,100% { filter:brightness(1); }
+  50% { filter:brightness(0.7); }
+}
+
+/* Grid resize handle */
+.resize-handle {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 28px;
+  height: 28px;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity var(--transition);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  touch-action: none;
+}
+.resize-handle::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-right: 3px solid rgba(255,255,255,0.7);
+  border-bottom: 3px solid rgba(255,255,255,0.7);
+  border-radius: 0 0 4px 0;
+}
+.edit-layout .resize-handle { opacity: 1; }
+.edit-layout .product-btn { cursor: default; }
+
+/* Empty slot */
+.empty-slot {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: calc(var(--font-size) * 0.8);
+  background: transparent;
+  cursor: pointer;
+}
+.empty-slot:active { background: rgba(0,0,0,0.03); }
+
+/* ============ Settings Page (Tab 2) ============ */
+.settings-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.settings-section {
+  margin-bottom: 20px;
+}
+.settings-section h3 {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Product list items */
+.product-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  box-shadow: var(--shadow);
+}
+.product-item-color {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+}
+.product-item-info { flex:1; min-width:0; }
+.product-item-name {
+  font-weight: 600;
+  font-size: calc(var(--font-size) * 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.product-item-price {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.product-item-actions { display:flex; gap:6px; flex-shrink:0; }
+
+/* Buttons */
+.btn {
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: calc(var(--font-size) * 0.85);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition);
+  white-space: nowrap;
+}
+.btn:active { opacity: 0.7; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+.btn-sm { padding: 4px 10px; font-size: calc(var(--font-size) * 0.75); }
+.btn-icon { padding: 6px 8px; line-height:1; }
+
+/* Form inputs */
+.input, .color-input {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: calc(var(--font-size) * 0.9);
+  background: var(--card-bg);
+  color: var(--text);
+  outline: none;
+  width: 100%;
+}
+.input:focus { border-color: var(--accent); }
+.color-input { padding: 4px 6px; width: 40px; height: 34px; cursor:pointer; }
+.form-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+.form-row .input { flex:1; }
+
+/* Template selector */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.template-opt {
+  padding: 12px 8px;
+  text-align: center;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: calc(var(--font-size) * 0.8);
+  transition: all var(--transition);
+}
+.template-opt.active { border-color: var(--accent); background: #eef2ff; color: var(--accent); }
+.template-opt:active { transform: scale(0.95); }
+.template-opt .tpl-icon {
+  display: block;
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+/* Slider */
+.slider-row { display:flex; align-items:center; gap:10px; }
+.slider-row label { font-size: calc(var(--font-size) * 0.85); flex-shrink:0; min-width:50px; }
+.slider-row input[type=range] { flex:1; }
+.slider-row .slider-val { font-size:12px; color:var(--text-secondary); width:30px; text-align:center; }
+
+/* Toggle switch for layout edit */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+.toggle-label { font-size: calc(var(--font-size) * 0.9); }
+.toggle {
+  width: 50px; height: 28px;
+  border-radius: 14px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--transition);
+  flex-shrink:0;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--transition);
+}
+.toggle.on::after { transform: translateX(22px); }
+
+/* Add product form */
+.add-product-form {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+/* ============ History Page (Tab 3) ============ */
+.history-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.history-day {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+}
+.history-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.history-day-date { font-weight:700; font-size:15px; }
+.history-day-total { font-size:13px; color:var(--text-secondary); }
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: calc(var(--font-size) * 0.85);
+}
+.history-row-name { display:flex; align-items:center; gap:6px; }
+.history-row-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+.history-row-count { font-weight:600; }
+.history-empty { text-align:center; padding:40px 20px; color:var(--text-secondary); }
+
+/* Action bar at bottom of history */
+.history-actions {
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+}
+.history-actions .btn { flex:1; text-align:center; }
+
+/* ============ Bottom Nav ============ */
+.bottom-nav {
+  display: flex;
+  height: var(--nav-height);
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition);
+  gap: 4px;
+}
+.nav-item.active { color: var(--accent); }
+.nav-item .nav-icon { font-size: 22px; line-height:1; }
+
+/* ============ Modal ============ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 20px;
+  width: 90%;
+  max-width: 360px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+.modal h3 { margin-bottom:14px; font-size:17px; }
+.modal .form-row { margin-bottom:12px; }
+.modal .form-row label { font-size:13px; color:var(--text-secondary); min-width:40px; }
+.modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+
+/* ============ Toast ============ */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 200;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-date" id="topDate"></span>
+      <span class="topbar-total" id="topTotal">0 件</span>
+    </div>
+    <div class="topbar-right">
+      <div>
+        <div class="topbar-stat-label">收入</div>
+        <div class="topbar-stat-val" id="topRevenue">¥0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 1: Count -->
+  <div class="page active" id="pageCount">
+    <div class="grid-container grid-5" id="gridContainer"></div>
+  </div>
+
+  <!-- Tab 2: Settings -->
+  <div class="page" id="pageSettings">
+    <div class="settings-scroll">
+      <!-- Products -->
+      <div class="settings-section">
+        <h3>产品管理</h3>
+        <div id="productList"></div>
+        <div class="add-product-form" id="addProductForm">
+          <div class="form-row">
+            <input class="input" id="newName" placeholder="产品名称" maxlength="10">
+            <input class="input" id="newPrice" type="number" placeholder="单价" min="0" step="0.5" style="width:80px;flex:none;">
+            <input type="color" class="color-input" id="newColor" value="#4f46e5">
+            <button class="btn btn-primary btn-sm" id="btnAdd">+添加</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Template -->
+      <div class="settings-section">
+        <h3>网格模板</h3>
+        <div class="template-grid" id="templateGrid">
+          <div class="template-opt active" data-tpl="5"><span class="tpl-icon">⊞</span>5宫格</div>
+          <div class="template-opt" data-tpl="10"><span class="tpl-icon">⊟</span>10宫格</div>
+          <div class="template-opt" data-tpl="15"><span class="tpl-icon">⊞⊞</span>15宫格</div>
+          <div class="template-opt" data-tpl="20"><span class="tpl-icon">⊟⊟</span>20宫格</div>
+        </div>
+      </div>
+
+      <!-- Layout Edit -->
+      <div class="settings-section">
+        <h3>布局调整</h3>
+        <div class="toggle-row">
+          <span class="toggle-label">编辑布局（可拖拽按钮右下角调整大小）</span>
+          <div class="toggle" id="layoutToggle"></div>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="settings-section">
+        <h3>外观设置</h3>
+        <div class="slider-row">
+          <label>圆角</label>
+          <input type="range" id="radiusSlider" min="0" max="30" value="12">
+          <span class="slider-val" id="radiusVal">12px</span>
+        </div>
+        <div class="slider-row" style="margin-top:8px;">
+          <label>字号</label>
+          <input type="range" id="fontSizeSlider" min="12" max="22" value="16">
+          <span class="slider-val" id="fontSizeVal">16px</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: History -->
+  <div class="page" id="pageHistory">
+    <div class="history-scroll" id="historyList"></div>
+    <div class="history-actions">
+      <button class="btn btn-outline" id="btnResetToday">重置今日</button>
+      <button class="btn btn-primary" id="btnExport">导出 CSV</button>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active" data-tab="count">
+      <span class="nav-icon">●</span>计数
+    </div>
+    <div class="nav-item" data-tab="settings">
+      <span class="nav-icon">◎</span>设置
+    </div>
+    <div class="nav-item" data-tab="history">
+      <span class="nav-icon">○</span>记录
+    </div>
+  </div>
+</div>
+
+<!-- Modal for editing product -->
+<div class="modal-overlay" id="modalEdit">
+  <div class="modal">
+    <h3>编辑产品</h3>
+    <div class="form-row">
+      <label>名称</label>
+      <input class="input" id="editName" maxlength="10">
+    </div>
+    <div class="form-row">
+      <label>单价</label>
+      <input class="input" id="editPrice" type="number" min="0" step="0.5">
+    </div>
+    <div class="form-row">
+      <label>颜色</label>
+      <input type="color" class="color-input" id="editColor" style="width:60px;">
+    </div>
+    <input type="hidden" id="editId">
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="btnEditCancel">取消</button>
+      <button class="btn btn-primary" id="btnEditSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== STATE MANAGER ====================
+const STORAGE_KEY = 'counter-app-v1';
+const DEFAULT_PRODUCTS = [
+  { id: 'p1', name: '产品一', price: 10, color: '#4f46e5', rowSpan: 1, colSpan: 1 },
+  { id: 'p2', name: '产品二', price: 15, color: '#059669', rowSpan: 1, colSpan: 1 },
+  { id: 'p3', name: '产品三', price: 8,  color: '#d97706', rowSpan: 1, colSpan: 1 },
+  { id: 'p4', name: '产品四', price: 12, color: '#dc2626', rowSpan: 1, colSpan: 1 },
+  { id: 'p5', name: '产品五', price: 20, color: '#7c3aed', rowSpan: 1, colSpan: 1 },
+];
+
+function getDefaultState() {
+  const today = getDateStr();
+  return {
+    version: 1,
+    products: JSON.parse(JSON.stringify(DEFAULT_PRODUCTS)),
+    template: '5',
+    todayDate: today,
+    todayCounts: {},
+    history: {},
+    settings: { borderRadius: 12, fontSize: 16 },
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return getDefaultState();
+    const state = JSON.parse(raw);
+    // Migration / fix missing fields
+    state.products.forEach(p => { p.rowSpan = p.rowSpan || 1; p.colSpan = p.colSpan || 1; });
+    state.settings = state.settings || { borderRadius: 12, fontSize: 16 };
+    state.history = state.history || {};
+    state.todayCounts = state.todayCounts || {};
+    // Check cross-day
+    const today = getDateStr();
+    if (state.todayDate !== today) {
+      archiveAndReset(state, today);
+    }
+    return state;
+  } catch(e) {
+    return getDefaultState();
+  }
+}
+
+function saveState(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch(e) { /* storage full */ }
+}
+
+function archiveAndReset(state, today) {
+  // Archive yesterday's data
+  if (state.todayDate && Object.keys(state.todayCounts).length > 0) {
+    const revenue = calcDayRevenue(state);
+    state.history[state.todayDate] = {
+      counts: { ...state.todayCounts },
+      totalRevenue: revenue,
+    };
+  }
+  state.todayDate = today;
+  state.todayCounts = {};
+}
+
+function getDateStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function calcDayRevenue(state) {
+  return state.products.reduce((sum, p) => {
+    return sum + (state.todayCounts[p.id] || 0) * p.price;
+  }, 0);
+}
+
+function getTodayTotal(state) {
+  return Object.values(state.todayCounts).reduce((a,b) => a+b, 0);
+}
+
+// ==================== GLOBAL STATE ====================
+let state = loadState();
+let layoutEditMode = false;
+let dragInfo = null; // for grid resize drag
+
+// ==================== DOM REFS ====================
+const $grid = document.getElementById('gridContainer');
+const $topDate = document.getElementById('topDate');
+const $topTotal = document.getElementById('topTotal');
+const $topRevenue = document.getElementById('topRevenue');
+const $productList = document.getElementById('productList');
+const $historyList = document.getElementById('historyList');
+const $toast = document.getElementById('toast');
+const $layoutToggle = document.getElementById('layoutToggle');
+const $radiusSlider = document.getElementById('radiusSlider');
+const $fontSizeSlider = document.getElementById('fontSizeSlider');
+const $radiusVal = document.getElementById('radiusVal');
+const $fontSizeVal = document.getElementById('fontSizeVal');
+const $modalEdit = document.getElementById('modalEdit');
+
+// ==================== NAVIGATION ====================
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => switchTab(el.dataset.tab));
+});
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+  document.getElementById('pageCount').classList.toggle('active', tab === 'count');
+  document.getElementById('pageSettings').classList.toggle('active', tab === 'settings');
+  document.getElementById('pageHistory').classList.toggle('active', tab === 'history');
+
+  if (tab === 'count') renderGrid();
+  if (tab === 'settings') renderSettings();
+  if (tab === 'history') renderHistory();
+}
+
+// ==================== TOP BAR ====================
+function updateTopBar() {
+  const total = getTodayTotal(state);
+  const revenue = calcDayRevenue(state);
+  $topDate.textContent = state.todayDate;
+  $topTotal.textContent = total + ' 件';
+  $topRevenue.textContent = '¥' + revenue.toFixed(1);
+}
+updateTopBar();
+
+// ==================== GRID RENDERING ====================
+function renderGrid() {
+  $grid.className = 'grid-container grid-' + state.template;
+  if (layoutEditMode) $grid.classList.add('edit-layout');
+  $grid.innerHTML = '';
+
+  const maxSlots = parseInt(state.template);
+  const products = state.products.slice(0, maxSlots);
+
+  products.forEach((p, idx) => {
+    const btn = document.createElement('div');
+    btn.className = 'product-btn';
+    btn.style.background = p.color;
+    if (p.colSpan > 1) btn.style.gridColumn = 'span ' + p.colSpan;
+    if (p.rowSpan > 1) btn.style.gridRow = 'span ' + p.rowSpan;
+    btn.dataset.pid = p.id;
+    btn.dataset.idx = idx;
+
+    const count = state.todayCounts[p.id] || 0;
+    const revenue = count * p.price;
+
+    btn.innerHTML = `
+      <span class="btn-price-tag">¥${p.price}</span>
+      <span class="btn-name">${escHtml(p.name)}</span>
+      <span class="btn-count">${count}</span>
+      <span class="btn-revenue">¥${revenue.toFixed(1)}</span>
+      <div class="resize-handle"></div>
+    `;
+
+    if (layoutEditMode) {
+      btn.addEventListener('pointerdown', onResizeStart);
+    } else {
+      btn.addEventListener('pointerdown', onBtnPointerDown);
+    }
+    $grid.appendChild(btn);
+  });
+
+  // Empty slots
+  for (let i = products.length; i < maxSlots; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-slot';
+    empty.textContent = '+';
+    empty.addEventListener('click', () => {
+      switchTab('settings');
+    });
+    $grid.appendChild(empty);
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ==================== COUNT INTERACTIONS ====================
+const LONG_PRESS_MS = 500;
+
+function onBtnPointerDown(e) {
+  if (layoutEditMode) return;
+  const btn = e.currentTarget;
+  const pid = btn.dataset.pid;
+  let handled = false;
+
+  const timer = setTimeout(() => {
+    handled = true;
+    btn._pressTimer = null;
+    // Long press = decrement
+    if ((state.todayCounts[pid] || 0) > 0) {
+      state.todayCounts[pid]--;
+      btn.querySelector('.btn-count').textContent = state.todayCounts[pid];
+      const rev = state.todayCounts[pid] * getProductPrice(pid);
+      btn.querySelector('.btn-revenue').textContent = '¥' + rev.toFixed(1);
+      btn.classList.add('flash-dec');
+      setTimeout(() => btn.classList.remove('flash-dec'), 200);
+      if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
+      saveState(state);
+      updateTopBar();
+    }
+  }, LONG_PRESS_MS);
+  btn._pressTimer = timer;
+
+  function onUp() {
+    clearTimeout(timer);
+    btn._pressTimer = null;
+    if (handled) return;
+    // Short press = increment
+    state.todayCounts[pid] = (state.todayCounts[pid] || 0) + 1;
+    btn.querySelector('.btn-count').textContent = state.todayCounts[pid];
+    const rev = state.todayCounts[pid] * getProductPrice(pid);
+    btn.querySelector('.btn-revenue').textContent = '¥' + rev.toFixed(1);
+    btn.classList.add('flash-inc');
+    setTimeout(() => btn.classList.remove('flash-inc'), 200);
+    if (navigator.vibrate) navigator.vibrate(10);
+    saveState(state);
+    updateTopBar();
+  }
+
+  function onLeave() {
+    clearTimeout(timer);
+    btn._pressTimer = null;
+  }
+
+  btn.addEventListener('pointerup', onUp, { once: true });
+  btn.addEventListener('pointerleave', onLeave, { once: true });
+  btn.addEventListener('pointercancel', onLeave, { once: true });
+}
+
+function getProductPrice(pid) {
+  const p = state.products.find(p => p.id === pid);
+  return p ? p.price : 0;
+}
+
+// ==================== GRID RESIZE ====================
+function onResizeStart(e) {
+  // Only start from the resize handle
+  if (!e.target.classList.contains('resize-handle') && !e.target.closest('.resize-handle')) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const product = state.products[parseInt(btn.dataset.idx)];
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const startW = rect.width;
+  const startH = rect.height;
+
+  // Get the base cell size
+  const gridRect = $grid.getBoundingClientRect();
+  const style = getComputedStyle($grid);
+  const cols = parseInt(state.template) <= 10 ? 2 : parseInt(state.template) <= 15 ? 3 : 4;
+  const gap = parseInt(style.gap) || 8;
+  const padH = parseInt(style.paddingLeft) + parseInt(style.paddingRight);
+  const cellW = (gridRect.width - padH - gap * (cols - 1)) / cols;
+
+  // rows are based on template
+  const rows = parseInt(state.template) <= 5 ? 3 : 5;
+  const padV = parseInt(style.paddingTop) + parseInt(style.paddingBottom);
+  const cellH = (gridRect.height - padV - gap * (rows - 1)) / rows;
+
+  function onMove(ev) {
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+    const newColSpan = Math.max(1, Math.min(cols, Math.round((startW + dx) / (cellW + gap))));
+    const newRowSpan = Math.max(1, Math.min(rows, Math.round((startH + dy) / (cellH + gap))));
+    product.colSpan = newColSpan;
+    product.rowSpan = newRowSpan;
+    btn.style.gridColumn = 'span ' + newColSpan;
+    btn.style.gridRow = 'span ' + newRowSpan;
+  }
+
+  function onUp(ev) {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    saveState(state);
+  }
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+
+// ==================== SETTINGS RENDERING ====================
+function renderSettings() {
+  // Products
+  $productList.innerHTML = state.products.map((p, i) => `
+    <div class="product-item">
+      <div class="product-item-color" style="background:${p.color}"></div>
+      <div class="product-item-info">
+        <div class="product-item-name">${escHtml(p.name)}</div>
+        <div class="product-item-price">¥${p.price} · ${state.todayCounts[p.id]||0}件</div>
+      </div>
+      <div class="product-item-actions">
+        <button class="btn btn-outline btn-sm" data-action="edit" data-idx="${i}">编辑</button>
+        <button class="btn btn-danger btn-sm" data-action="delete" data-idx="${i}">删除</button>
+      </div>
+    </div>
+  `).join('');
+
+  $productList.querySelectorAll('[data-action="edit"]').forEach(btn => {
+    btn.addEventListener('click', () => openEditModal(parseInt(btn.dataset.idx)));
+  });
+  $productList.querySelectorAll('[data-action="delete"]').forEach(btn => {
+    btn.addEventListener('click', () => deleteProduct(parseInt(btn.dataset.idx)));
+  });
+
+  // Template
+  document.querySelectorAll('.template-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.tpl === state.template);
+  });
+
+  // Layout toggle
+  $layoutToggle.classList.toggle('on', layoutEditMode);
+
+  // Sliders
+  $radiusSlider.value = state.settings.borderRadius;
+  $fontSizeSlider.value = state.settings.fontSize;
+  $radiusVal.textContent = state.settings.borderRadius + 'px';
+  $fontSizeVal.textContent = state.settings.fontSize + 'px';
+}
+
+// Product CRUD
+document.getElementById('btnAdd').addEventListener('click', () => {
+  const name = document.getElementById('newName').value.trim();
+  const price = parseFloat(document.getElementById('newPrice').value) || 0;
+  const color = document.getElementById('newColor').value;
+  if (!name) { showToast('请输入产品名称'); return; }
+  state.products.push({
+    id: 'p' + Date.now(),
+    name,
+    price,
+    color,
+    rowSpan: 1,
+    colSpan: 1,
+  });
+  document.getElementById('newName').value = '';
+  document.getElementById('newPrice').value = '';
+  saveState(state);
+  renderSettings();
+  showToast('已添加 ' + name);
+});
+
+function openEditModal(idx) {
+  const p = state.products[idx];
+  document.getElementById('editId').value = idx;
+  document.getElementById('editName').value = p.name;
+  document.getElementById('editPrice').value = p.price;
+  document.getElementById('editColor').value = p.color;
+  $modalEdit.classList.add('show');
+}
+
+document.getElementById('btnEditCancel').addEventListener('click', () => {
+  $modalEdit.classList.remove('show');
+});
+
+document.getElementById('btnEditSave').addEventListener('click', () => {
+  const idx = parseInt(document.getElementById('editId').value);
+  const p = state.products[idx];
+  p.name = document.getElementById('editName').value.trim() || p.name;
+  p.price = parseFloat(document.getElementById('editPrice').value) || 0;
+  p.color = document.getElementById('editColor').value;
+  $modalEdit.classList.remove('show');
+  saveState(state);
+  renderSettings();
+  renderGrid();
+  updateTopBar();
+  showToast('已更新');
+});
+
+$modalEdit.addEventListener('click', (e) => {
+  if (e.target === $modalEdit) $modalEdit.classList.remove('show');
+});
+
+function deleteProduct(idx) {
+  const p = state.products[idx];
+  if (!confirm('确定删除「' + p.name + '」？')) return;
+  const pid = p.id;
+  state.products.splice(idx, 1);
+  delete state.todayCounts[pid];
+  saveState(state);
+  renderSettings();
+  renderGrid();
+  updateTopBar();
+  showToast('已删除 ' + p.name);
+}
+
+// Template selector
+document.getElementById('templateGrid').addEventListener('click', (e) => {
+  const opt = e.target.closest('.template-opt');
+  if (!opt) return;
+  state.template = opt.dataset.tpl;
+  saveState(state);
+  renderSettings();
+  renderGrid();
+});
+
+// Layout toggle
+$layoutToggle.addEventListener('click', () => {
+  layoutEditMode = !layoutEditMode;
+  $layoutToggle.classList.toggle('on', layoutEditMode);
+  renderGrid();
+  showToast(layoutEditMode ? '布局编辑模式：拖拽按钮右下角调整大小' : '布局编辑已关闭');
+});
+
+// Appearance sliders
+$radiusSlider.addEventListener('input', () => {
+  state.settings.borderRadius = parseInt($radiusSlider.value);
+  $radiusVal.textContent = state.settings.borderRadius + 'px';
+  document.documentElement.style.setProperty('--radius', state.settings.borderRadius + 'px');
+});
+$radiusSlider.addEventListener('change', () => saveState(state));
+
+$fontSizeSlider.addEventListener('input', () => {
+  state.settings.fontSize = parseInt($fontSizeSlider.value);
+  $fontSizeVal.textContent = state.settings.fontSize + 'px';
+  document.documentElement.style.setProperty('--font-size', state.settings.fontSize + 'px');
+});
+$fontSizeSlider.addEventListener('change', () => saveState(state));
+
+// ==================== HISTORY ====================
+function renderHistory() {
+  const dates = Object.keys(state.history).sort().reverse();
+  if (dates.length === 0) {
+    $historyList.innerHTML = '<div class="history-empty">暂无历史记录<br><small>计数数据会在每天自动归档</small></div>';
+    return;
+  }
+  $historyList.innerHTML = dates.map(date => {
+    const day = state.history[date];
+    const counts = day.counts || {};
+    const entries = Object.entries(counts).filter(([,c]) => c > 0);
+    const total = entries.reduce((s, [,c]) => s+c, 0);
+    return `
+      <div class="history-day">
+        <div class="history-day-header">
+          <span class="history-day-date">${date}</span>
+          <span class="history-day-total">${total}件 · ¥${(day.totalRevenue||0).toFixed(1)}</span>
+        </div>
+        ${entries.map(([pid, cnt]) => {
+          const p = state.products.find(p => p.id === pid);
+          const name = p ? p.name : '(已删除)';
+          const color = p ? p.color : '#999';
+          const price = p ? p.price : 0;
+          return `
+            <div class="history-row">
+              <span class="history-row-name"><span class="history-row-dot" style="background:${color}"></span>${escHtml(name)}</span>
+              <span class="history-row-count">${cnt}件 ¥${(cnt*price).toFixed(1)}</span>
+            </div>`;
+        }).join('')}
+      </div>
+    `;
+  }).join('');
+}
+
+// Reset today
+document.getElementById('btnResetToday').addEventListener('click', () => {
+  if (!confirm('确定要重置今日所有计数吗？此操作不可撤销。')) return;
+  state.todayCounts = {};
+  saveState(state);
+  renderGrid();
+  updateTopBar();
+  if (document.getElementById('pageHistory').classList.contains('active')) renderHistory();
+  showToast('今日计数已重置');
+});
+
+// Export CSV
+document.getElementById('btnExport').addEventListener('click', () => {
+  const dates = Object.keys(state.history).sort();
+  if (dates.length === 0 && getTodayTotal(state) === 0) {
+    showToast('暂无数据可导出');
+    return;
+  }
+
+  let csv = '日期,产品,数量,单价,金额\n';
+  // Today
+  const today = state.todayDate;
+  state.products.forEach(p => {
+    const cnt = state.todayCounts[p.id] || 0;
+    if (cnt > 0) {
+      csv += `${today},${p.name},${cnt},${p.price},${(cnt*p.price).toFixed(1)}\n`;
+    }
+  });
+  // History
+  dates.forEach(date => {
+    const day = state.history[date];
+    const counts = day.counts || {};
+    state.products.forEach(p => {
+      const cnt = counts[p.id] || 0;
+      if (cnt > 0) {
+        csv += `${date},${p.name},${cnt},${p.price},${(cnt*p.price).toFixed(1)}\n`;
+      }
+    });
+    // Handle deleted products still in history
+    Object.entries(counts).forEach(([pid, cnt]) => {
+      if (cnt > 0 && !state.products.find(p => p.id === pid)) {
+        csv += `${date},(已删除产品),${cnt},0,0\n`;
+      }
+    });
+  });
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '计数记录_' + getDateStr() + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV 已下载');
+});
+
+// ==================== TOAST ====================
+let toastTimer;
+function showToast(msg) {
+  $toast.textContent = msg;
+  $toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $toast.classList.remove('show'), 1800);
+}
+
+// ==================== APPLY SETTINGS ON LOAD ====================
+document.documentElement.style.setProperty('--radius', state.settings.borderRadius + 'px');
+document.documentElement.style.setProperty('--font-size', state.settings.fontSize + 'px');
+$radiusSlider.value = state.settings.borderRadius;
+$fontSizeSlider.value = state.settings.fontSize;
+$radiusVal.textContent = state.settings.borderRadius + 'px';
+$fontSizeVal.textContent = state.settings.fontSize + 'px';
+
+// ==================== INITIAL RENDER ====================
+renderGrid();
+updateTopBar();
+
+// PWA: For offline support on a real deployment, add a sw.js file at the root.
+// The app works fully offline via browser cache without a service worker for now.
+
+// ==================== KEYBOARD SHORTCUT (dev) ====================
+document.addEventListener('keydown', (e) => {
+  if (e.key === '1') switchTab('count');
+  if (e.key === '2') switchTab('settings');
+  if (e.key === '3') switchTab('history');
+});
+</script>
+</body>
+</html>
