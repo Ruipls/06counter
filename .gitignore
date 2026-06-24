@@ -5,3 +5,6 @@ Thumbs.db
 # Editor
 *.swp
 *.swo
+# Claude Code internals
+*.jsonl
+memory/
