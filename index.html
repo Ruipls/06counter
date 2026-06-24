@@ -770,13 +770,7 @@ function getTodayTotal(state) {
 }
 
 // ==================== ACTIVATION SYSTEM ====================
-const PRO_HASHES = [
-  "c05ee1105effb2e3","508e6eb7c4e5f8cc","89de1cf5db4bf2dc","4b57d7c3a177ddce",
-  "cc2813564e61e26b","b7016a0da6ecdb16","954ef983543ab030","00e433596a9dba98",
-  "1356febd9bba1828","74ebf760b63c5c4f","74d849e5bb9986ea","91271610c9e4f7e1",
-  "63b955f845a0ff5b","ff37ba3d5801f38e","7978148a838282b3","9a4cd03c10f73667",
-  "315a3bd0488e5611","b41a1831d8ffc7ac","447b8e0caf468571","9ac46ff8302bda03"
-];
+const PRO_KEY = 'cc6k28x9m3pq';
 
 function isPro() {
   try {
@@ -795,18 +789,45 @@ function maskCode(code) {
   return code.substring(0, 6) + '***-***' + code.substring(code.length - 4);
 }
 
+function generateMachineCode() {
+  const fp = [
+    navigator.hardwareConcurrency || 1,
+    navigator.platform || '',
+    navigator.language || '',
+    screen.colorDepth || 24,
+    navigator.maxTouchPoints || 0,
+    new Date().getTimezoneOffset(),
+    navigator.userAgentData ? navigator.userAgentData.platform : '',
+  ].join('|');
+  const hash = simpleHash(fp);
+  return hash.substring(0, 8).toUpperCase();
+}
+
 function activatePro(inputCode) {
   const code = inputCode.trim().toUpperCase();
   if (!code || code.length < 14) return false;
-  const hashHex = simpleHash(code);
-  if (PRO_HASHES.includes(hashHex)) {
+  const machineCode = generateMachineCode();
+  const expected = makeActivationCode(machineCode);
+  if (code === expected || code === makeActivationCodeLegacy(machineCode)) {
     try {
       localStorage.setItem('counter-pro-activated', 'true');
       localStorage.setItem('counter-pro-code', code);
+      localStorage.setItem('counter-pro-machine', machineCode);
     } catch(e) { /* storage full */ }
     return true;
   }
   return false;
+}
+
+function makeActivationCode(machineCode) {
+  const hash = simpleHash(machineCode + PRO_KEY);
+  const seg = hash.substring(0, 12);
+  return 'CP-' + seg.substring(0, 4) + '-' + seg.substring(4, 8) + '-' + seg.substring(8, 12);
+}
+
+// Legacy: support old static activation codes during transition
+function makeActivationCodeLegacy(machineCode) {
+  return null; // no legacy codes, always use machine binding
 }
 
 function simpleHash(s) {
@@ -1090,14 +1111,18 @@ function renderVersionInfo() {
       <div class="contact-hint">已解锁全部功能：20 个产品位 · 全部宫格模板</div>
     `;
   } else {
+    const mc = generateMachineCode();
     $vi.innerHTML = `
       <div class="version-status">免费版</div>
       <div class="version-code">最多 5 个产品 · 仅 5 宫格</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin:8px 0;">
+        设备码：<b style="color:var(--text);letter-spacing:1px;" id="machineCode">${escHtml(mc)}</b>
+      </div>
       <div class="activate-row">
         <input class="activate-input" id="activateInput" placeholder="CP-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" spellcheck="false">
         <button class="btn btn-primary btn-sm" id="btnActivate">激活</button>
       </div>
-      <div class="contact-hint">如需购买激活码，请联系微信客服</div>
+      <div class="contact-hint">购买后将上方<b>设备码</b>发给客服，获取专属激活码</div>
     `;
     // Bind activation button
     const $btnAct = document.getElementById('btnActivate');
