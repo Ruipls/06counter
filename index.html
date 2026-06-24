@@ -453,6 +453,87 @@ html, body {
   pointer-events: none;
 }
 .toast.show { opacity: 1; }
+
+/* ============ Pro/Free Badge ============ */
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+}
+.version-badge.free { background: #e5e7eb; color: #6b7280; }
+.version-badge.pro  { background: #fbbf24; color: #92400e; }
+
+/* ============ Version Section (Settings) ============ */
+.version-info {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.version-info .version-status {
+  font-size: calc(var(--font-size) * 0.9);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.version-info .version-status .pro-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  margin-left: 4px;
+}
+.version-info .version-code {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+.version-info .activate-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.version-info .activate-input {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: calc(var(--font-size) * 0.85);
+  background: var(--card-bg);
+  color: var(--text);
+  outline: none;
+  width: 200px;
+  text-align: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.version-info .activate-input:focus { border-color: var(--accent); }
+.version-info .contact-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* ============ Template Locked ============ */
+.template-opt.locked {
+  opacity: 0.5;
+  position: relative;
+}
+.template-opt.locked::after {
+  content: '🔒';
+  font-size: 10px;
+  position: absolute;
+  top: 2px;
+  right: 4px;
+}
 </style>
 </head>
 <body>
@@ -461,7 +542,7 @@ html, body {
   <!-- Top Bar -->
   <div class="topbar">
     <div class="topbar-left">
-      <span class="topbar-date" id="topDate"></span>
+      <span class="topbar-date" id="topDate"><span class="version-badge free" id="topBadge">免费版</span></span>
       <span class="topbar-total" id="topTotal">0 件</span>
     </div>
     <div class="topbar-right">
@@ -528,6 +609,12 @@ html, body {
           <span class="slider-val" id="fontSizeVal">16px</span>
         </div>
       </div>
+
+      <!-- Version -->
+      <div class="settings-section">
+        <h3>版本信息</h3>
+        <div class="version-info" id="versionInfo"></div>
+      </div>
     </div>
   </div>
 
@@ -578,6 +665,24 @@ html, body {
   </div>
 </div>
 
+<!-- Modal for upgrade -->
+<div class="modal-overlay" id="modalUpgrade">
+  <div class="modal">
+    <h3>专业版功能</h3>
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
+      免费版最多添加 <b>5 个产品</b>，仅支持 <b>5 宫格</b>模板。<br>
+      升级专业版可解锁全部 20 个产品位和 5/10/15/20 全部宫格。
+    </p>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;">
+      如需购买激活码，请联系微信客服获取。
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="btnUpgradeLater">暂不升级</button>
+      <button class="btn btn-primary" id="btnUpgradeGo">输入激活码</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -615,6 +720,10 @@ function loadState() {
     state.settings = state.settings || { borderRadius: 12, fontSize: 16 };
     state.history = state.history || {};
     state.todayCounts = state.todayCounts || {};
+    // Free version: force template to 5 if not pro
+    if (!isPro() && parseInt(state.template) > 5) {
+      state.template = '5';
+    }
     // Check cross-day
     const today = getDateStr();
     if (state.todayDate !== today) {
@@ -660,6 +769,59 @@ function getTodayTotal(state) {
   return Object.values(state.todayCounts).reduce((a,b) => a+b, 0);
 }
 
+// ==================== ACTIVATION SYSTEM ====================
+const PRO_HASHES = [
+  "c05ee1105effb2e3","508e6eb7c4e5f8cc","89de1cf5db4bf2dc","4b57d7c3a177ddce",
+  "cc2813564e61e26b","b7016a0da6ecdb16","954ef983543ab030","00e433596a9dba98",
+  "1356febd9bba1828","74ebf760b63c5c4f","74d849e5bb9986ea","91271610c9e4f7e1",
+  "63b955f845a0ff5b","ff37ba3d5801f38e","7978148a838282b3","9a4cd03c10f73667",
+  "315a3bd0488e5611","b41a1831d8ffc7ac","447b8e0caf468571","9ac46ff8302bda03"
+];
+
+function isPro() {
+  try {
+    return localStorage.getItem('counter-pro-activated') === 'true';
+  } catch(e) { return false; }
+}
+
+function getProCode() {
+  try {
+    return localStorage.getItem('counter-pro-code') || '';
+  } catch(e) { return ''; }
+}
+
+function maskCode(code) {
+  if (!code || code.length < 14) return code;
+  return code.substring(0, 6) + '***-***' + code.substring(code.length - 4);
+}
+
+function activatePro(inputCode) {
+  const code = inputCode.trim().toUpperCase();
+  if (!code || code.length < 14) return false;
+  const hashHex = simpleHash(code);
+  if (PRO_HASHES.includes(hashHex)) {
+    try {
+      localStorage.setItem('counter-pro-activated', 'true');
+      localStorage.setItem('counter-pro-code', code);
+    } catch(e) { /* storage full */ }
+    return true;
+  }
+  return false;
+}
+
+function simpleHash(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  let h2 = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h2 ^= s.charCodeAt(i);
+    h2 = Math.imul(h2, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+}
+
 // ==================== GLOBAL STATE ====================
 let state = loadState();
 let layoutEditMode = false;
@@ -700,7 +862,7 @@ function switchTab(tab) {
 function updateTopBar() {
   const total = getTodayTotal(state);
   const revenue = calcDayRevenue(state);
-  $topDate.textContent = state.todayDate;
+  $topDate.innerHTML = '<span class="version-badge ' + (isPro() ? 'pro' : 'free') + '" id="topBadge">' + (isPro() ? 'PRO' : '免费版') + '</span> ' + state.todayDate;
   $topTotal.textContent = total + ' 件';
   $topRevenue.textContent = '¥' + revenue.toFixed(1);
 }
@@ -894,8 +1056,16 @@ function renderSettings() {
   });
 
   // Template
+  const pro = isPro();
   document.querySelectorAll('.template-opt').forEach(el => {
     el.classList.toggle('active', el.dataset.tpl === state.template);
+    // Lock 10/15/20 for free users
+    const tpl = parseInt(el.dataset.tpl);
+    if (!pro && tpl > 5) {
+      el.classList.add('locked');
+    } else {
+      el.classList.remove('locked');
+    }
   });
 
   // Layout toggle
@@ -906,10 +1076,58 @@ function renderSettings() {
   $fontSizeSlider.value = state.settings.fontSize;
   $radiusVal.textContent = state.settings.borderRadius + 'px';
   $fontSizeVal.textContent = state.settings.fontSize + 'px';
+
+  // Version info
+  renderVersionInfo();
+}
+
+function renderVersionInfo() {
+  const $vi = document.getElementById('versionInfo');
+  if (isPro()) {
+    $vi.innerHTML = `
+      <div class="version-status">专业版 <span class="pro-badge">PRO</span></div>
+      <div class="version-code">激活码：${escHtml(maskCode(getProCode()))}</div>
+      <div class="contact-hint">已解锁全部功能：20 个产品位 · 全部宫格模板</div>
+    `;
+  } else {
+    $vi.innerHTML = `
+      <div class="version-status">免费版</div>
+      <div class="version-code">最多 5 个产品 · 仅 5 宫格</div>
+      <div class="activate-row">
+        <input class="activate-input" id="activateInput" placeholder="CP-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" spellcheck="false">
+        <button class="btn btn-primary btn-sm" id="btnActivate">激活</button>
+      </div>
+      <div class="contact-hint">如需购买激活码，请联系微信客服</div>
+    `;
+    // Bind activation button
+    const $btnAct = document.getElementById('btnActivate');
+    const $actInput = document.getElementById('activateInput');
+    if ($btnAct && $actInput) {
+      $btnAct.addEventListener('click', () => {
+        const code = $actInput.value.trim().toUpperCase();
+        if (!code || code.length < 14) {
+          showToast('请输入完整激活码');
+          return;
+        }
+        if (activatePro(code)) {
+          showToast('已解锁专业版！');
+          renderSettings();
+          renderGrid();
+          updateTopBar();
+        } else {
+          showToast('激活码无效');
+        }
+      });
+    }
+  }
 }
 
 // Product CRUD
 document.getElementById('btnAdd').addEventListener('click', () => {
+  if (!isPro() && state.products.length >= 5) {
+    showUpgradeModal();
+    return;
+  }
   const name = document.getElementById('newName').value.trim();
   const price = parseFloat(document.getElementById('newPrice').value) || 0;
   const color = document.getElementById('newColor').value;
@@ -960,6 +1178,28 @@ $modalEdit.addEventListener('click', (e) => {
   if (e.target === $modalEdit) $modalEdit.classList.remove('show');
 });
 
+// Upgrade modal
+const $modalUpgrade = document.getElementById('modalUpgrade');
+document.getElementById('btnUpgradeLater').addEventListener('click', () => {
+  $modalUpgrade.classList.remove('show');
+});
+document.getElementById('btnUpgradeGo').addEventListener('click', () => {
+  $modalUpgrade.classList.remove('show');
+  switchTab('settings');
+  // Scroll to version section after render
+  setTimeout(() => {
+    document.getElementById('versionInfo').scrollIntoView({ behavior: 'smooth' });
+  }, 100);
+});
+$modalUpgrade.addEventListener('click', (e) => {
+  if (e.target === $modalUpgrade) $modalUpgrade.classList.remove('show');
+});
+
+function showUpgradeModal() {
+  if (isPro()) return;
+  $modalUpgrade.classList.add('show');
+}
+
 function deleteProduct(idx) {
   const p = state.products[idx];
   if (!confirm('确定删除「' + p.name + '」？')) return;
@@ -977,6 +1217,10 @@ function deleteProduct(idx) {
 document.getElementById('templateGrid').addEventListener('click', (e) => {
   const opt = e.target.closest('.template-opt');
   if (!opt) return;
+  if (opt.classList.contains('locked')) {
+    showUpgradeModal();
+    return;
+  }
   state.template = opt.dataset.tpl;
   saveState(state);
   renderSettings();
