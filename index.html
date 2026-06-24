@@ -821,7 +821,7 @@ function activatePro(inputCode) {
 
 function makeActivationCode(machineCode) {
   const hash = simpleHash(machineCode + PRO_KEY);
-  const seg = hash.substring(0, 12);
+  const seg = hash.substring(0, 12).toUpperCase();
   return 'CP-' + seg.substring(0, 4) + '-' + seg.substring(4, 8) + '-' + seg.substring(8, 12);
 }
 
