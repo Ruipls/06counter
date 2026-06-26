@@ -728,6 +728,7 @@ function getDefaultState() {
     template: '5',
     todayDate: today,
     todayCounts: {},
+    todayClicks: [],
     history: {},
     settings: { borderRadius: 12, fontSize: 16, soundEnabled: true },
   };
@@ -744,6 +745,7 @@ function loadState() {
     if (state.settings.soundEnabled === undefined) state.settings.soundEnabled = true;
     state.history = state.history || {};
     state.todayCounts = state.todayCounts || {};
+    state.todayClicks = state.todayClicks || [];
     // Free version: force template to 5 if not pro
     if (!isPro() && parseInt(state.template) > 5) {
       state.template = '5';
@@ -771,11 +773,13 @@ function archiveAndReset(state, today) {
     const revenue = calcDayRevenue(state);
     state.history[state.todayDate] = {
       counts: { ...state.todayCounts },
+      clicks: (state.todayClicks || []).slice(),
       totalRevenue: revenue,
     };
   }
   state.todayDate = today;
   state.todayCounts = {};
+  state.todayClicks = [];
 }
 
 function getDateStr() {
@@ -1044,6 +1048,24 @@ function escHtml(s) {
 // ==================== COUNT INTERACTIONS ====================
 const LONG_PRESS_MS = 500;
 
+function getTimeStr() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' +
+         String(d.getMinutes()).padStart(2,'0') + ':' +
+         String(d.getSeconds()).padStart(2,'0');
+}
+
+function logClick(pid, delta) {
+  const p = state.products.find(p => p.id === pid);
+  if (!p) return;
+  state.todayClicks.push({
+    name: p.name,
+    price: p.price,
+    delta: delta,
+    time: getTimeStr(),
+  });
+}
+
 function onBtnPointerDown(e) {
   if (layoutEditMode) return;
   const btn = e.currentTarget;
@@ -1056,6 +1078,7 @@ function onBtnPointerDown(e) {
     // Long press = decrement
     if ((state.todayCounts[pid] || 0) > 0) {
       state.todayCounts[pid]--;
+      logClick(pid, -1);
       btn.querySelector('.btn-count').textContent = state.todayCounts[pid];
       const rev = state.todayCounts[pid] * getProductPrice(pid);
       btn.querySelector('.btn-revenue').textContent = '¥' + rev.toFixed(1);
@@ -1075,6 +1098,7 @@ function onBtnPointerDown(e) {
     if (handled) return;
     // Short press = increment
     state.todayCounts[pid] = (state.todayCounts[pid] || 0) + 1;
+    logClick(pid, +1);
     btn.querySelector('.btn-count').textContent = state.todayCounts[pid];
     const rev = state.todayCounts[pid] * getProductPrice(pid);
     btn.querySelector('.btn-revenue').textContent = '¥' + rev.toFixed(1);
@@ -1423,6 +1447,7 @@ function renderHistory() {
 document.getElementById('btnResetToday').addEventListener('click', () => {
   if (!confirm('确定要重置今日所有计数吗？此操作不可撤销。')) return;
   state.todayCounts = {};
+  state.todayClicks = [];
   saveState(state);
   renderGrid();
   updateTopBar();
@@ -1439,7 +1464,7 @@ document.getElementById('btnExport').addEventListener('click', () => {
   }
 
   let csv = '日期,产品,数量,单价,金额\n';
-  // Today
+  // Today aggregated
   const today = state.todayDate;
   state.products.forEach(p => {
     const cnt = state.todayCounts[p.id] || 0;
@@ -1447,7 +1472,7 @@ document.getElementById('btnExport').addEventListener('click', () => {
       csv += `${today},${p.name},${cnt},${p.price},${(cnt*p.price).toFixed(1)}\n`;
     }
   });
-  // History
+  // History aggregated
   dates.forEach(date => {
     const day = state.history[date];
     const counts = day.counts || {};
@@ -1457,11 +1482,24 @@ document.getElementById('btnExport').addEventListener('click', () => {
         csv += `${date},${p.name},${cnt},${p.price},${(cnt*p.price).toFixed(1)}\n`;
       }
     });
-    // Handle deleted products still in history
     Object.entries(counts).forEach(([pid, cnt]) => {
       if (cnt > 0 && !state.products.find(p => p.id === pid)) {
         csv += `${date},(已删除产品),${cnt},0,0\n`;
       }
+    });
+  });
+
+  // Click-level detail
+  csv += '\n--- 详细点击记录 ---\n日期,时间,产品,变动,单价,金额\n';
+  // Today clicks
+  (state.todayClicks || []).forEach(c => {
+    csv += `${today},${c.time},${c.name},${c.delta > 0 ? '+' + c.delta : c.delta},${c.price},${(c.delta*c.price).toFixed(1)}\n`;
+  });
+  // History clicks
+  dates.forEach(date => {
+    const clicks = state.history[date].clicks || [];
+    clicks.forEach(c => {
+      csv += `${date},${c.time},${c.name},${c.delta > 0 ? '+' + c.delta : c.delta},${c.price},${(c.delta*c.price).toFixed(1)}\n`;
     });
   });
 
