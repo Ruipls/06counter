@@ -400,9 +400,6 @@ html, body {
 .history-actions .btn { flex:1; text-align:center; }
 
 /* ============ Bottom Nav ============ */
-/* Height driven by content + safe-area, no fixed value.
-   In standalone PWA: safe-area-inset-bottom accounts for home indicator.
-   In browser: accounts for Safari bottom toolbar (or 0 if none). */
 .bottom-nav {
   display: flex;
   background: var(--card-bg);
@@ -410,19 +407,25 @@ html, body {
   flex-shrink: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+/* PWA standalone: no safe-area padding — home indicator floats over page bg */
+@media (display-mode: standalone) {
+  .bottom-nav { padding-bottom: 0; }
+}
+
 .nav-item {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 8px 0 6px;
+  padding: 5px 0 5px;
   color: var(--text-secondary);
   font-size: 10px;
+  line-height: 1;
   font-weight: 500;
   cursor: pointer;
   transition: color var(--transition);
-  gap: 2px;
+  gap: 1px;
 }
 .nav-item.active { color: var(--accent); }
 .nav-item .nav-icon { font-size: 20px; line-height:1; }
