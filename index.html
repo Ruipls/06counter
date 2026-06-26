@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#1a1a2e">
@@ -78,6 +78,7 @@ html, body {
   gap: 8px;
   padding: 8px;
   grid-auto-rows: 1fr;
+  touch-action: manipulation;
 }
 .grid-container.grid-5  { grid-template-columns: repeat(2, 1fr); }
 .grid-container.grid-10 { grid-template-columns: repeat(2, 1fr); }
@@ -100,6 +101,7 @@ html, body {
   overflow: hidden;
   min-height: 0;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .product-btn:active {
   transform: scale(0.95);
@@ -136,15 +138,19 @@ html, body {
   border-radius: 8px;
 }
 /* flash feedback */
-.product-btn.flash-inc { animation: flashGreen 0.2s ease; }
-.product-btn.flash-dec { animation: flashRed 0.2s ease; }
+.product-btn.flash-inc { animation: flashGreen 0.3s ease; }
+.product-btn.flash-dec { animation: flashRed 0.3s ease; }
 @keyframes flashGreen {
-  0%,100% { filter:brightness(1); }
-  50% { filter:brightness(1.4); }
+  0%   { filter:brightness(1); transform:scale(1); }
+  25%  { filter:brightness(1.8); transform:scale(0.88); }
+  60%  { filter:brightness(1.15); transform:scale(1.03); }
+  100% { filter:brightness(1); transform:scale(1); }
 }
 @keyframes flashRed {
-  0%,100% { filter:brightness(1); }
-  50% { filter:brightness(0.7); }
+  0%   { filter:brightness(1); transform:scale(1); }
+  25%  { filter:brightness(0.3); transform:scale(0.88); }
+  60%  { filter:brightness(0.85); transform:scale(1.03); }
+  100% { filter:brightness(1); transform:scale(1); }
 }
 
 /* Grid resize handle */
@@ -608,6 +614,10 @@ html, body {
           <input type="range" id="fontSizeSlider" min="12" max="22" value="16">
           <span class="slider-val" id="fontSizeVal">16px</span>
         </div>
+        <div class="toggle-row">
+          <span class="toggle-label">点击音效</span>
+          <div class="toggle on" id="soundToggle"></div>
+        </div>
       </div>
 
       <!-- Version -->
@@ -706,7 +716,7 @@ function getDefaultState() {
     todayDate: today,
     todayCounts: {},
     history: {},
-    settings: { borderRadius: 12, fontSize: 16 },
+    settings: { borderRadius: 12, fontSize: 16, soundEnabled: true },
   };
 }
 
@@ -717,7 +727,8 @@ function loadState() {
     const state = JSON.parse(raw);
     // Migration / fix missing fields
     state.products.forEach(p => { p.rowSpan = p.rowSpan || 1; p.colSpan = p.colSpan || 1; });
-    state.settings = state.settings || { borderRadius: 12, fontSize: 16 };
+    state.settings = state.settings || { borderRadius: 12, fontSize: 16, soundEnabled: true };
+    if (state.settings.soundEnabled === undefined) state.settings.soundEnabled = true;
     state.history = state.history || {};
     state.todayCounts = state.todayCounts || {};
     // Free version: force template to 5 if not pro
@@ -843,6 +854,78 @@ function simpleHash(s) {
   return (h >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
 }
 
+// ==================== AUDIO FEEDBACK ====================
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (audioCtx && audioCtx.state === 'closed') {
+    audioCtx = null;
+  }
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) { return null; }
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+// Fix: iOS lockscreen kills AudioContext, recreate on wake
+// Also handles bfcache restoration (pageshow with persisted=true)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && audioCtx) {
+    if (audioCtx.state !== 'running' && audioCtx.state !== 'closed') {
+      audioCtx.resume(); // async, but scheduled audio will queue
+    }
+  }
+});
+
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && audioCtx) {
+    // bfcache restore: AudioContext is likely broken, force recreate
+    try { audioCtx.close(); } catch(ex) {}
+    audioCtx = null;
+  }
+});
+
+function playIncSound() {
+  if (!state.settings.soundEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.08);
+  } catch(e) { /* ignore audio errors */ }
+}
+
+function playDecSound() {
+  if (!state.settings.soundEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 400;
+    osc.type = 'triangle';
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.12);
+  } catch(e) { /* ignore audio errors */ }
+}
+
 // ==================== GLOBAL STATE ====================
 let state = loadState();
 let layoutEditMode = false;
@@ -861,6 +944,7 @@ const $radiusSlider = document.getElementById('radiusSlider');
 const $fontSizeSlider = document.getElementById('fontSizeSlider');
 const $radiusVal = document.getElementById('radiusVal');
 const $fontSizeVal = document.getElementById('fontSizeVal');
+const $soundToggle = document.getElementById('soundToggle');
 const $modalEdit = document.getElementById('modalEdit');
 
 // ==================== NAVIGATION ====================
@@ -965,6 +1049,7 @@ function onBtnPointerDown(e) {
       btn.classList.add('flash-dec');
       setTimeout(() => btn.classList.remove('flash-dec'), 200);
       if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
+      playDecSound();
       saveState(state);
       updateTopBar();
     }
@@ -983,6 +1068,7 @@ function onBtnPointerDown(e) {
     btn.classList.add('flash-inc');
     setTimeout(() => btn.classList.remove('flash-inc'), 200);
     if (navigator.vibrate) navigator.vibrate(10);
+    playIncSound();
     saveState(state);
     updateTopBar();
   }
@@ -1097,6 +1183,9 @@ function renderSettings() {
   $fontSizeSlider.value = state.settings.fontSize;
   $radiusVal.textContent = state.settings.borderRadius + 'px';
   $fontSizeVal.textContent = state.settings.fontSize + 'px';
+
+  // Sound toggle
+  $soundToggle.classList.toggle('on', state.settings.soundEnabled);
 
   // Version info
   renderVersionInfo();
@@ -1252,6 +1341,14 @@ document.getElementById('templateGrid').addEventListener('click', (e) => {
   renderGrid();
 });
 
+// Sound toggle
+$soundToggle.addEventListener('click', () => {
+  state.settings.soundEnabled = !state.settings.soundEnabled;
+  $soundToggle.classList.toggle('on', state.settings.soundEnabled);
+  saveState(state);
+  showToast(state.settings.soundEnabled ? '音效已开启' : '音效已关闭');
+});
+
 // Layout toggle
 $layoutToggle.addEventListener('click', () => {
   layoutEditMode = !layoutEditMode;
@@ -1395,6 +1492,26 @@ document.addEventListener('keydown', (e) => {
   if (e.key === '2') switchTab('settings');
   if (e.key === '3') switchTab('history');
 });
+
+// ==================== PREVENT SAFARI ZOOM (double-tap + pinch) ====================
+// Strategy: intercept only at click/touchend level, never at touchstart.
+// touchstart preventDefault() kills iOS user-gesture flag → breaks AudioContext.
+let lastTouchEnd = 0;
+
+// Suppress rapid successive touchend (standard double-tap)
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 500) {
+    e.preventDefault();
+  }
+  lastTouchEnd = now;
+}, { passive: false });
+
+// Suppress synthesized dblclick (iOS Safari fires this on double-tap)
+document.addEventListener('dblclick', (e) => { e.preventDefault(); });
+
+// Block pinch-zoom gesture (iOS Safari)
+document.addEventListener('gesturestart', (e) => { e.preventDefault(); });
 </script>
 </body>
 </html>

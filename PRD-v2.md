@@ -6,6 +6,7 @@
 |------|------|------|
 | v1 | 2026-06 | 初始版本，单文件计数工具，5/10/15/20 宫格 |
 | v2 | 2026-06 | 新增免费版/专业版分版，机器码绑定一人一码 |
+| v2.1 | 2026-06-26 | 新增点击音效反馈、视觉动画增强、音效开关、iOS Safari 防缩放体系 |
 
 ---
 
@@ -35,13 +36,14 @@
 |------|------|
 | 产品数量上限 | 5 个 |
 | 网格模板 | 仅 5 宫格 |
-| 计数功能 | 完整（+1 / -1 / 震动反馈） |
+| 计数功能 | 完整（+1 / -1 / 音效反馈 / 视觉动画 / Android 震动反馈） |
 | 产品管理 | 完整（增删改查、颜色、单价） |
 | 布局编辑 | 完整（拖拽调整 span） |
-| 外观设置 | 完整（圆角、字号） |
+| 外观设置 | 完整（圆角、字号、点击音效开关） |
 | 每日归档 | 完整 |
 | 历史记录 | 完整 |
 | CSV 导出 | 完整 |
+| 防误触反馈 | 音效 + 视觉闪烁 + 缩放弹跳三重反馈，iOS Safari 防双击/双指缩放 |
 | 定位 | 让摊主免费体验全部核心功能，觉得好用自然会分享和升级 |
 
 ### 专业版
@@ -180,6 +182,52 @@
 - `loadState()` 中检查：如果不是专业版且已保存模板 > 5，强制重置为 5 宫格
 - 防止专业版降级后残留大模板数据
 
+### 4.7 点击反馈系统（防误触）
+
+**设计目标**：每次点击操作必须有即时、可感知的反馈，防止在忙碌售卖场景中的误触和漏触。
+
+**反馈层级**：
+
+| 层级 | 机制 | +1（短按） | -1（长按 500ms） | iOS 静音 | Android 静音 |
+|------|------|:---:|:---:|:---:|:---:|
+| 视觉 | CSS 关键帧动画 | 绿色高亮闪烁 + 缩放弹跳 | 深暗闪烁 + 缩放弹跳 | 正常 | 正常 |
+| 音效 | Web Audio API | 1200Hz 正弦波 "叮"(80ms) | 400Hz 三角波 "咚"(120ms) | 被静音开关屏蔽 | 正常 |
+| 震动 | navigator.vibrate | 10ms 短震 | [10,30,10] 模式长震 | 不支持 | 正常 |
+
+**视觉动画细节**：
+- +1（flashGreen）：亮度峰值 1.8x → 弹回 1.15x → 归位，缩放 0.88 → 1.03 → 1.0
+- -1（flashRed）：亮度谷值 0.3x → 弹回 0.85x → 归位，缩放同上
+- 动画时长 300ms，ease 缓动
+
+**音效开关**：
+- 设置页 → 外观设置 → "点击音效"开关
+- 默认开启，状态持久化至 `localStorage`（`settings.soundEnabled`）
+- 关闭时音效静默，视觉和震动不受影响
+
+**AudioContext 健壮性**：
+- `visibilitychange` 监听：页面恢复可见时自动 resume
+- `pageshow` 监听：bfcache 恢复时重建 AudioContext（`e.persisted === true`）
+- `getAudioCtx()` 每次调用检测 `closed`/`suspended` 状态，按需重建
+- 注意：`touchstart` 的 `preventDefault()` 会破坏 iOS 用户手势标志 → AudioContext 无法启动
+
+### 4.8 iOS Safari 防缩放体系
+
+**问题**：iOS Safari 的双击缩放、双指缩放、双击长按缩放会干扰计数的点击操作。
+
+**6 层防护**：
+
+| 层 | 实现 | 拦截目标 |
+|---|------|---------|
+| viewport meta | `user-scalable=no` + `maximum-scale=1.0` | 声明禁止缩放 |
+| CSS body | `touch-action: manipulation` | 双击缩放 |
+| CSS .grid-container | `touch-action: manipulation` | 容器级双击缩放（DOM 重建后仍生效） |
+| CSS .product-btn | `touch-action: manipulation` | 按钮级双击缩放 |
+| JS touchend | 500ms 窗口内第二次 touchend → preventDefault | 快速双击 |
+| JS dblclick | preventDefault | iOS 合成双击事件 |
+| JS gesturestart | preventDefault | 双指缩放 |
+
+**关键约束**：不能拦截 `touchstart`——iOS Safari 会将 `touchstart` 的 `preventDefault()` 标记为"非用户手势"，导致 `AudioContext.resume()` 静默失败。
+
 ---
 
 ## 五、技术方案
@@ -218,6 +266,11 @@ index.html
     ├── activatePro(code) — 验证激活码并写入状态
     ├── renderVersionInfo() — 渲染版本信息（含设备码/激活入口）
     ├── showUpgradeModal() — 显示升级提示弹窗
+    ├── getAudioCtx() — Web Audio API 上下文管理（锁屏/bfcache 自动恢复）
+    ├── playIncSound() — +1 音效（1200Hz 正弦波，80ms）
+    ├── playDecSound() — -1 音效（400Hz 三角波，120ms）
+    ├── visibilitychange / pageshow 监听 — iOS 唤醒后 AudioContext 恢复
+    ├── touchend / dblclick / gesturestart 拦截 — iOS Safari 防缩放体系
     └── 修改 btnAdd / templateGrid 逻辑加入限制检查
 ```
 
@@ -258,4 +311,4 @@ index.html
 - 仓库：https://github.com/Ruipls/06counter（private）
 - 分支：`v2-pro`（v2 开发），`main`（v1 稳定）
 - 入口文件：`index.html`
-- 当前 v2 最新 commit：`59111c5`
+- 当前 v2 最新 commit：`2f68014`（v2.1 反馈系统 + 防缩放）
