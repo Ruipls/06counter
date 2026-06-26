@@ -7,6 +7,8 @@
 | v1 | 2026-06 | 初始版本，单文件计数工具，5/10/15/20 宫格 |
 | v2 | 2026-06 | 新增免费版/专业版分版，机器码绑定一人一码 |
 | v2.1 | 2026-06-26 | 新增点击音效反馈、视觉动画增强、音效开关、iOS Safari 防缩放体系 |
+| v2.2 | 2026-06-26 | 补全 PWA 支持（manifest + Service Worker + 图标），Apple HIG 底部导航栏适配 |
+| v2.3 | 2026-06-26 | 每次点击记录时间戳，CSV 导出含详细点击记录；客服工具增加 PIN 锁 |
 
 ---
 
@@ -22,9 +24,17 @@
 - 查看历史销售记录
 
 **分发策略**：
-- 免费版通过微信群/朋友圈传播，功能完整但产品数量受限
+- 免费版通过微信群/朋友圈传播一个链接，iOS/Android 均可"添加到桌面"安装为独立 App（PWA）
 - 专业版通过激活码解锁，微信社群直销
+- GitHub Pages 免费部署，HTTPS 域名
 - 后续上架 App Store 扩展全球市场
+
+**PWA 交付**：
+- 一个 URL：`https://ruipls.github.io/06counter/`
+- iOS Safari：分享 → 添加到主屏幕 → 独立 App（无浏览器工具栏）
+- Android Chrome：自动弹出安装提示 → 安装
+- 离线可用：Service Worker 缓存所有资源
+- 图标：紫色渐变 + 号设计，192px + 512px SVG
 
 ---
 
@@ -228,6 +238,51 @@
 
 **关键约束**：不能拦截 `touchstart`——iOS Safari 会将 `touchstart` 的 `preventDefault()` 标记为"非用户手势"，导致 `AudioContext.resume()` 静默失败。
 
+### 4.9 PWA 交付与 Safe Area 适配
+
+**PWA 组件**：
+- `manifest.json`：声明 `display: standalone`（独立窗口）、`orientation: portrait`（竖屏锁定）、主题色
+- `sw.js`：Service Worker，安装时预缓存所有资源，fetch 事件采用缓存优先策略（离线可用）
+- SVG 图标：紫色渐变圆角背景 + 白色 + 号 + 数字 42，192px / 512px 双尺寸
+
+**Safe Area 适配**：
+- 顶部：`#app { padding-top: env(safe-area-inset-top) }` — 内容避开刘海/状态栏
+- 左右：`#app { padding-left/right: env(safe-area-inset-*) }` — 横屏 notch 适配
+- 底部浏览器模式：`.bottom-nav { padding-bottom: env(safe-area-inset-bottom) }` — Safari 底部工具栏自适应
+- 底部 PWA 模式：`@media (display-mode: standalone) { .bottom-nav { padding-bottom: 0 } }` — 仅内容高度，Home 指示条浮于灰底上
+- `html, body { background: var(--card-bg) }` — 安全区背景白色，与顶栏/底栏无缝衔接
+
+**底部导航栏 Apple HIG 对齐**：
+- 内容区 ~46pt（接近 iOS 标准 49pt Tab Bar），紧凑 padding + gap
+- 图标 20px，标签 10px，line-height: 1
+
+### 4.10 点击时间戳记录
+
+**功能**：每次 +1 / -1 操作记录一条时间戳，不在界面呈现，仅在 CSV 导出中体现。
+
+**记录结构**：`{ name, price, delta, time: 'HH:MM:SS' }`
+
+**存储**：
+- 当日：`state.todayClicks[]`
+- 跨日归档：随 `archiveAndReset()` 存入 `state.history[date].clicks[]`
+- 重置今日：同步清空 `todayClicks`
+
+**CSV 导出格式**（双段落）：
+```
+日期,产品,数量,单价,金额              ← 汇总
+...
+--- 详细点击记录 ---
+日期,时间,产品,变动,单价,金额           ← 逐条
+2026-06-26,14:30:12,产品一,+1,10,10.0
+2026-06-26,14:31:05,产品二,-1,15,-15.0
+```
+
+### 4.11 客服工具安全
+
+- `generator.html` 本地使用，gitignored，不提交公开仓库
+- 增加 6 位 PIN 码锁（`UNLOCK_PIN` 可自定义），打开后先解锁再使用
+- `sessionStorage` 缓存解锁状态，同 Tab 内不重复要求
+
 ---
 
 ## 五、技术方案
@@ -254,24 +309,28 @@ simpleHash(s):
 ### 代码结构
 
 ```
+06counter/
+├── index.html              ← 主应用（单文件）
+├── manifest.json            ← PWA 清单（独立窗口、竖屏、主题色）
+├── sw.js                   ← Service Worker（缓存优先策略，离线可用）
+├── icon-192.svg / icon-512.svg  ← PWA 应用图标
+├── PRD-v2.md               ← 本文件
+└── .claude/tools/
+    └── generator.html       ← 激活码生成器（PIN 锁 + 设备码输入，gitignored）
+
 index.html
-├── CSS: 版本徽标、升级弹窗、锁定模板、版本信息区块
-├── HTML: 版本信息区块 (#versionInfo)、升级弹窗 (#modalUpgrade)、顶部栏徽标
+├── CSS: 安全区适配(@media standalone)、底部导航栏 Apple HIG、反馈动画、版本徽标
+├── HTML: 版本信息、升级弹窗、顶部栏、底部导航
 └── JS:
-    ├── PRO_KEY — 密钥常量（勿提交公开仓库）
+    ├── PRO_KEY — 密钥常量
     ├── simpleHash(s) — 双哈希函数
     ├── generateMachineCode() — 设备指纹 → 8 位设备码
     ├── makeActivationCode(machineCode) — 机器码 → CP-XXXX-XXXX-XXXX
-    ├── isPro() — 读取 localStorage 判断是否专业版
-    ├── activatePro(code) — 验证激活码并写入状态
-    ├── renderVersionInfo() — 渲染版本信息（含设备码/激活入口）
-    ├── showUpgradeModal() — 显示升级提示弹窗
-    ├── getAudioCtx() — Web Audio API 上下文管理（锁屏/bfcache 自动恢复）
-    ├── playIncSound() — +1 音效（1200Hz 正弦波，80ms）
-    ├── playDecSound() — -1 音效（400Hz 三角波，120ms）
-    ├── visibilitychange / pageshow 监听 — iOS 唤醒后 AudioContext 恢复
-    ├── touchend / dblclick / gesturestart 拦截 — iOS Safari 防缩放体系
-    └── 修改 btnAdd / templateGrid 逻辑加入限制检查
+    ├── isPro() / activatePro(code) — 激活状态管理
+    ├── getAudioCtx() / playIncSound() / playDecSound() — Web Audio 音效
+    ├── logClick(pid, delta) / getTimeStr() — 点击时间戳记录
+    ├── visibilitychange / pageshow / touchend / gesturestart 监听
+    └── renderGrid() / renderSettings() / renderHistory() — 视图渲染
 ```
 
 ### 开发工具
@@ -279,7 +338,7 @@ index.html
 | 文件 | 说明 |
 |------|------|
 | `server.js` | 本地 HTTP 服务器，iPhone 局域网预览（gitignored） |
-| `.claude/tools/generator.html` | 激活码生成器，输入设备码生成专属码（gitignored） |
+| `.claude/tools/generator.html` | 激活码生成器（PIN 码解锁 + 设备码输入），gitignored |
 | `.claude/activation-codes.txt` | 旧版固定激活码备份（已废弃，gitignored） |
 
 ---
@@ -308,7 +367,8 @@ index.html
 
 ## 八、参考
 
-- 仓库：https://github.com/Ruipls/06counter（private）
+- 仓库：https://github.com/Ruipls/06counter（public）
+- 线上地址：https://ruipls.github.io/06counter/
 - 分支：`v2-pro`（v2 开发），`main`（v1 稳定）
 - 入口文件：`index.html`
-- 当前 v2 最新 commit：`2f68014`（v2.1 反馈系统 + 防缩放）
+- 当前 v2 最新 commit：`d0428af`（v2.3 点击时间戳 + PWA + 反馈系统）
