@@ -88,8 +88,9 @@ html, body {
   touch-action: manipulation;
 }
 .grid-container.grid-5  { grid-template-columns: repeat(2, 1fr); }
+.grid-container.grid-6  { grid-template-columns: repeat(2, 1fr); }
 .grid-container.grid-10 { grid-template-columns: repeat(2, 1fr); }
-.grid-container.grid-15 { grid-template-columns: repeat(3, 1fr); }
+.grid-container.grid-40 { grid-template-columns: repeat(4, 1fr); }
 .grid-container.grid-20 { grid-template-columns: repeat(4, 1fr); }
 
 .product-btn {
@@ -574,7 +575,7 @@ html, body {
 
   <!-- Tab 1: Count -->
   <div class="page active" id="pageCount">
-    <div class="grid-container grid-5" id="gridContainer"></div>
+    <div class="grid-container grid-6" id="gridContainer"></div>
   </div>
 
   <!-- Tab 2: Settings -->
@@ -598,10 +599,10 @@ html, body {
       <div class="settings-section">
         <h3>网格模板</h3>
         <div class="template-grid" id="templateGrid">
-          <div class="template-opt active" data-tpl="5"><span class="tpl-icon">⊞</span>5宫格</div>
+          <div class="template-opt active" data-tpl="6"><span class="tpl-icon">⊞</span>6宫格</div>
           <div class="template-opt" data-tpl="10"><span class="tpl-icon">⊟</span>10宫格</div>
-          <div class="template-opt" data-tpl="15"><span class="tpl-icon">⊞⊞</span>15宫格</div>
           <div class="template-opt" data-tpl="20"><span class="tpl-icon">⊟⊟</span>20宫格</div>
+          <div class="template-opt" data-tpl="40"><span class="tpl-icon">⊞⊞</span>40宫格</div>
         </div>
       </div>
 
@@ -693,8 +694,8 @@ html, body {
   <div class="modal">
     <h3>专业版功能</h3>
     <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
-      免费版最多添加 <b>5 个产品</b>，仅支持 <b>5 宫格</b>模板。<br>
-      升级专业版可解锁全部 20 个产品位和 5/10/15/20 全部宫格。
+      免费版最多添加 <b>6 个产品</b>，仅支持 <b>6 宫格</b>模板。<br>
+      升级专业版可解锁全部 20 个产品位和 6/10/20/40 全部宫格。
     </p>
     <p style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;">
       如需购买激活码，请联系微信客服获取。
@@ -718,6 +719,7 @@ const DEFAULT_PRODUCTS = [
   { id: 'p3', name: '产品三', price: 8,  color: '#d97706', rowSpan: 1, colSpan: 1 },
   { id: 'p4', name: '产品四', price: 12, color: '#dc2626', rowSpan: 1, colSpan: 1 },
   { id: 'p5', name: '产品五', price: 20, color: '#7c3aed', rowSpan: 1, colSpan: 1 },
+  { id: 'p6', name: '产品六', price: 18, color: '#0891b2', rowSpan: 1, colSpan: 1 },
 ];
 
 function getDefaultState() {
@@ -725,7 +727,7 @@ function getDefaultState() {
   return {
     version: 1,
     products: JSON.parse(JSON.stringify(DEFAULT_PRODUCTS)),
-    template: '5',
+    template: '6',
     todayDate: today,
     todayCounts: {},
     todayClicks: [],
@@ -746,9 +748,9 @@ function loadState() {
     state.history = state.history || {};
     state.todayCounts = state.todayCounts || {};
     state.todayClicks = state.todayClicks || [];
-    // Free version: force template to 5 if not pro
-    if (!isPro() && parseInt(state.template) > 5) {
-      state.template = '5';
+    // Free version: force template to 6 if not pro
+    if (!isPro() && parseInt(state.template) > 6) {
+      state.template = '6';
     }
     // Check cross-day
     const today = getDateStr();
@@ -1144,13 +1146,13 @@ function onResizeStart(e) {
   // Get the base cell size
   const gridRect = $grid.getBoundingClientRect();
   const style = getComputedStyle($grid);
-  const cols = parseInt(state.template) <= 10 ? 2 : parseInt(state.template) <= 15 ? 3 : 4;
+  const cols = parseInt(state.template) <= 10 ? 2 : 4;
   const gap = parseInt(style.gap) || 8;
   const padH = parseInt(style.paddingLeft) + parseInt(style.paddingRight);
   const cellW = (gridRect.width - padH - gap * (cols - 1)) / cols;
 
   // rows are based on template
-  const rows = parseInt(state.template) <= 5 ? 3 : 5;
+  const rows = parseInt(state.template) <= 6 ? 3 : parseInt(state.template) >= 40 ? 10 : 5;
   const padV = parseInt(style.paddingTop) + parseInt(style.paddingBottom);
   const cellH = (gridRect.height - padV - gap * (rows - 1)) / rows;
 
@@ -1203,9 +1205,9 @@ function renderSettings() {
   const pro = isPro();
   document.querySelectorAll('.template-opt').forEach(el => {
     el.classList.toggle('active', el.dataset.tpl === state.template);
-    // Lock 10/15/20 for free users
+    // Lock 10/20/40 for free users (6-grid is free)
     const tpl = parseInt(el.dataset.tpl);
-    if (!pro && tpl > 5) {
+    if (!pro && tpl > 6) {
       el.classList.add('locked');
     } else {
       el.classList.remove('locked');
@@ -1240,7 +1242,7 @@ function renderVersionInfo() {
     const mc = generateMachineCode();
     $vi.innerHTML = `
       <div class="version-status">免费版</div>
-      <div class="version-code">最多 5 个产品 · 仅 5 宫格</div>
+      <div class="version-code">最多 6 个产品 · 仅 6 宫格</div>
       <div style="font-size:12px;color:var(--text-secondary);margin:8px 0;">
         设备码：<b style="color:var(--text);letter-spacing:1px;" id="machineCode">${escHtml(mc)}</b>
       </div>
@@ -1275,7 +1277,7 @@ function renderVersionInfo() {
 
 // Product CRUD
 document.getElementById('btnAdd').addEventListener('click', () => {
-  if (!isPro() && state.products.length >= 5) {
+  if (!isPro() && state.products.length >= 6) {
     showUpgradeModal();
     return;
   }
