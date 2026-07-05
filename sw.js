@@ -1,4 +1,5 @@
-const CACHE_NAME = 'counter-v2-20260626';
+// 每次发版请更新此版本号
+const CACHE_NAME = 'counter-v20260704';
 const ASSETS = [
   '/06counter/',
   '/06counter/index.html',
