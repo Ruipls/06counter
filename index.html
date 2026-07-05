@@ -1086,7 +1086,7 @@ function onBtnPointerDown(e) {
       btn.querySelector('.btn-revenue').textContent = '¥' + rev.toFixed(1);
       btn.classList.add('flash-dec');
       setTimeout(() => btn.classList.remove('flash-dec'), 200);
-      if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
+      if (navigator.vibrate) navigator.vibrate([25, 50, 25]);
       playDecSound();
       saveState(state);
       updateTopBar();
@@ -1106,7 +1106,7 @@ function onBtnPointerDown(e) {
     btn.querySelector('.btn-revenue').textContent = '¥' + rev.toFixed(1);
     btn.classList.add('flash-inc');
     setTimeout(() => btn.classList.remove('flash-inc'), 200);
-    if (navigator.vibrate) navigator.vibrate(10);
+    if (navigator.vibrate) navigator.vibrate(20);
     playIncSound();
     saveState(state);
     updateTopBar();
