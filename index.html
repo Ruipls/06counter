@@ -581,6 +581,89 @@ html, body {
   top: 2px;
   right: 4px;
 }
+
+/* ============ Counting Mode Toggle ============ */
+.mode-toggle-row {
+  display: flex;
+  gap: 8px;
+}
+.mode-opt {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: calc(var(--font-size) * 0.85);
+  transition: all var(--transition);
+}
+.mode-opt.active { border-color: var(--accent); background: #eef2ff; color: var(--accent); }
+
+/* ============ Stock Setup Modal ============ */
+.stock-list { max-height: 50vh; overflow-y: auto; margin-bottom: 12px; }
+.stock-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.stock-row:last-child { border-bottom: none; }
+.stock-row-dot { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+.stock-row-name { flex: 1; font-weight: 600; font-size: calc(var(--font-size) * 0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stock-row-stepper { display: flex; align-items: center; gap: 6px; }
+.stock-row-btn {
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+.stock-row-btn:active { background: var(--bg); }
+.stock-row-val {
+  width: 48px; height: 36px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  background: var(--bg);
+  border-radius: 8px;
+  color: var(--text);
+  outline: none;
+}
+.stock-row-val:focus { box-shadow: 0 0 0 2px var(--accent); }
+.stock-row-val.unset { color: var(--text-secondary); font-weight: 400; font-size: 14px; }
+.stock-actions { display: flex; flex-direction: column; gap: 8px; }
+.stock-actions .btn { width: 100%; text-align: center; padding: 12px; font-size: calc(var(--font-size) * 0.9); }
+
+/* ============ Low Stock Warning ============ */
+.product-btn.low-stock { animation: pulseWarn 1.5s ease-in-out infinite; }
+@keyframes pulseWarn {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.4), 0 2px 8px rgba(0,0,0,0.15); }
+}
+.product-btn.stock-out { opacity: 0.5; filter: grayscale(0.4); }
+
+/* ============ Mode Badge in Top Bar ============ */
+.mode-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  letter-spacing: 0.3px;
+}
+.mode-badge.add { background: #dbeafe; color: #1d4ed8; }
+.mode-badge.sub { background: #fce7f3; color: #be185d; }
 </style>
 </head>
 <body>
@@ -639,6 +722,15 @@ html, body {
         <div class="toggle-row">
           <span class="toggle-label">编辑布局（可拖拽按钮右下角调整大小）</span>
           <div class="toggle" id="layoutToggle"></div>
+        </div>
+      </div>
+
+      <!-- Counting Mode -->
+      <div class="settings-section">
+        <h3>计数模式</h3>
+        <div class="mode-toggle-row" id="modeToggle">
+          <div class="mode-opt active" data-mode="add">➕ 加法<br><small>点一下 +1</small></div>
+          <div class="mode-opt" data-mode="sub">➖ 减法<br><small>点一下 −1</small></div>
         </div>
       </div>
 
@@ -734,6 +826,21 @@ html, body {
   </div>
 </div>
 
+<!-- Modal for stock setup -->
+<div class="modal-overlay" id="modalStockSetup">
+  <div class="modal" style="max-width:400px;">
+    <h3>📦 设置初始库存</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">
+      登记今天每种产品带了多少件
+    </p>
+    <div class="stock-list" id="stockList"></div>
+    <div class="stock-actions">
+      <button class="btn btn-outline" id="btnStockReuse">📋 沿用上次剩余库存</button>
+      <button class="btn btn-primary" id="btnStockConfirm">✅ 确认，开始售卖</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -757,9 +864,10 @@ function getDefaultState() {
     template: '6',
     todayDate: today,
     todayCounts: {},
+    todayStocks: {},
     todayClicks: [],
     history: {},
-    settings: { borderRadius: 12, fontSize: 16, soundEnabled: true },
+    settings: { borderRadius: 12, fontSize: 16, soundEnabled: true, mode: 'add' },
   };
 }
 
@@ -772,8 +880,10 @@ function loadState() {
     state.products.forEach(p => { p.rowSpan = p.rowSpan || 1; p.colSpan = p.colSpan || 1; });
     state.settings = state.settings || { borderRadius: 12, fontSize: 16, soundEnabled: true };
     if (state.settings.soundEnabled === undefined) state.settings.soundEnabled = true;
+    if (!state.settings.mode) state.settings.mode = 'add';
     state.history = state.history || {};
     state.todayCounts = state.todayCounts || {};
+    state.todayStocks = state.todayStocks || {};
     state.todayClicks = state.todayClicks || [];
     // Free version: force template to 6 if not pro
     if (!isPro() && parseInt(state.template) > 6) {
@@ -798,16 +908,22 @@ function saveState(state) {
 
 function archiveAndReset(state, today) {
   // Archive yesterday's data
-  if (state.todayDate && Object.keys(state.todayCounts).length > 0) {
+  const hasData = state.settings.mode === 'sub'
+    ? Object.keys(state.todayStocks).length > 0
+    : Object.keys(state.todayCounts).length > 0;
+  if (state.todayDate && hasData) {
     const revenue = calcDayRevenue(state);
     state.history[state.todayDate] = {
       counts: { ...state.todayCounts },
+      stocks: { ...state.todayStocks },
       clicks: (state.todayClicks || []).slice(),
       totalRevenue: revenue,
+      mode: state.settings.mode,
     };
   }
   state.todayDate = today;
   state.todayCounts = {};
+  state.todayStocks = {};
   state.todayClicks = [];
 }
 
@@ -817,12 +933,18 @@ function getDateStr() {
 }
 
 function calcDayRevenue(state) {
+  if (state.settings.mode === 'sub') {
+    return (state.todayClicks || []).reduce((sum, c) => sum + Math.abs(c.delta) * c.price, 0);
+  }
   return state.products.reduce((sum, p) => {
     return sum + (state.todayCounts[p.id] || 0) * p.price;
   }, 0);
 }
 
 function getTodayTotal(state) {
+  if (state.settings.mode === 'sub') {
+    return (state.todayClicks || []).filter(c => c.delta < 0).reduce((s, c) => s + Math.abs(c.delta), 0);
+  }
   return Object.values(state.todayCounts).reduce((a,b) => a+b, 0);
 }
 
@@ -1014,9 +1136,16 @@ function switchTab(tab) {
 function updateTopBar() {
   const total = getTodayTotal(state);
   const revenue = calcDayRevenue(state);
-  $topDate.innerHTML = '<span class="version-badge ' + (isPro() ? 'pro' : 'free') + '" id="topBadge">' + (isPro() ? 'PRO' : '免费版') + '</span> ' + state.todayDate;
-  $topTotal.textContent = total + ' 件';
-  $topRevenue.textContent = '¥' + revenue.toFixed(1);
+  const modeHtml = '<span class="mode-badge ' + state.settings.mode + '">' + (state.settings.mode === 'sub' ? '减法' : '加法') + '</span>';
+  $topDate.innerHTML = '<span class="version-badge ' + (isPro() ? 'pro' : 'free') + '" id="topBadge">' + (isPro() ? 'PRO' : '免费版') + '</span>' + modeHtml + ' ' + state.todayDate;
+  if (state.settings.mode === 'sub') {
+    const remaining = state.products.reduce((s, p) => s + (state.todayStocks[p.id] || 0), 0);
+    $topTotal.textContent = '剩余 ' + remaining + ' 件';
+    $topRevenue.textContent = '售出 ¥' + revenue.toFixed(1);
+  } else {
+    $topTotal.textContent = total + ' 件';
+    $topRevenue.textContent = '¥' + revenue.toFixed(1);
+  }
 }
 updateTopBar();
 
@@ -1029,6 +1158,8 @@ function renderGrid() {
   const maxSlots = parseInt(state.template);
   const products = state.products.slice(0, maxSlots);
 
+  const subMode = state.settings.mode === 'sub';
+
   products.forEach((p, idx) => {
     const btn = document.createElement('div');
     btn.className = 'product-btn';
@@ -1038,14 +1169,26 @@ function renderGrid() {
     btn.dataset.pid = p.id;
     btn.dataset.idx = idx;
 
-    const count = state.todayCounts[p.id] || 0;
-    const revenue = count * p.price;
+    let count, revenue;
+    if (subMode) {
+      count = state.todayStocks[p.id] !== undefined ? state.todayStocks[p.id] : '--';
+      revenue = (state.todayClicks || []).filter(c => c.name === p.name && c.delta < 0).reduce((s, c) => s + Math.abs(c.delta) * c.price, 0);
+      // Low stock warning
+      if (typeof count === 'number' && count <= 3 && count > 0) btn.classList.add('low-stock');
+      if (count === 0) btn.classList.add('stock-out');
+    } else {
+      count = state.todayCounts[p.id] || 0;
+      revenue = count * p.price;
+    }
+
+    const countLabel = subMode ? '剩余 ' : '';
+    const revLabel = subMode ? '售出 ' : '';
 
     btn.innerHTML = `
       <span class="btn-price-tag">¥${p.price}</span>
       <span class="btn-name">${escHtml(p.name)}</span>
-      <span class="btn-count">${count}</span>
-      <span class="btn-revenue">¥${revenue.toFixed(1)}</span>
+      <span class="btn-count">${countLabel}${count}</span>
+      <span class="btn-revenue">${revLabel}¥${revenue.toFixed(1)}</span>
       <div class="resize-handle"></div>
     `;
 
@@ -1058,7 +1201,7 @@ function renderGrid() {
     $grid.appendChild(btn);
   });
 
-  // Empty slots
+  // Empty slots or stock setup entry
   for (let i = products.length; i < maxSlots; i++) {
     const empty = document.createElement('div');
     empty.className = 'empty-slot';
@@ -1067,6 +1210,19 @@ function renderGrid() {
       switchTab('settings');
     });
     $grid.appendChild(empty);
+  }
+
+  // In subtraction mode, add stock setup button below empty slots if no stock set
+  if (subMode && state.products.length > 0 && Object.keys(state.todayStocks).length === 0) {
+    const setupRow = document.createElement('div');
+    setupRow.style.cssText = 'grid-column:1/-1;padding:8px;';
+    setupRow.innerHTML = '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" id="btnStockSetupInline">📦 设置初始库存，开始售卖</button>';
+    $grid.appendChild(setupRow);
+    // Bind after append
+    setTimeout(() => {
+      const btn = document.getElementById('btnStockSetupInline');
+      if (btn) btn.addEventListener('click', openStockSetup);
+    }, 0);
   }
 }
 
@@ -1101,24 +1257,37 @@ function onBtnPointerDown(e) {
   if (layoutEditMode) return;
   const btn = e.currentTarget;
   const pid = btn.dataset.pid;
+  const subMode = state.settings.mode === 'sub';
   let handled = false;
 
   const timer = setTimeout(() => {
     handled = true;
     btn._pressTimer = null;
-    // Long press = decrement
-    if ((state.todayCounts[pid] || 0) > 0) {
-      state.todayCounts[pid]--;
-      logClick(pid, -1);
-      btn.querySelector('.btn-count').textContent = state.todayCounts[pid];
-      const rev = state.todayCounts[pid] * getProductPrice(pid);
-      btn.querySelector('.btn-revenue').textContent = '¥' + rev.toFixed(1);
-      btn.classList.add('flash-dec');
-      setTimeout(() => btn.classList.remove('flash-dec'), 200);
-      if (navigator.vibrate) navigator.vibrate([25, 50, 25]);
-      playDecSound();
+    if (subMode) {
+      // Subtraction mode: long press = +1 (undo/return)
+      if (state.todayStocks[pid] === undefined || state.todayStocks[pid] === null) return;
+      state.todayStocks[pid]++;
+      logClick(pid, +1);
+      updateBtnDisplay(btn, pid);
+      btn.classList.add('flash-inc');
+      setTimeout(() => btn.classList.remove('flash-inc'), 200);
+      if (navigator.vibrate) navigator.vibrate(20);
+      playIncSound();
       saveState(state);
       updateTopBar();
+    } else {
+      // Addition mode: long press = -1 (decrement)
+      if ((state.todayCounts[pid] || 0) > 0) {
+        state.todayCounts[pid]--;
+        logClick(pid, -1);
+        updateBtnDisplay(btn, pid);
+        btn.classList.add('flash-dec');
+        setTimeout(() => btn.classList.remove('flash-dec'), 200);
+        if (navigator.vibrate) navigator.vibrate([25, 50, 25]);
+        playDecSound();
+        saveState(state);
+        updateTopBar();
+      }
     }
   }, LONG_PRESS_MS);
   btn._pressTimer = timer;
@@ -1127,18 +1296,37 @@ function onBtnPointerDown(e) {
     clearTimeout(timer);
     btn._pressTimer = null;
     if (handled) return;
-    // Short press = increment
-    state.todayCounts[pid] = (state.todayCounts[pid] || 0) + 1;
-    logClick(pid, +1);
-    btn.querySelector('.btn-count').textContent = state.todayCounts[pid];
-    const rev = state.todayCounts[pid] * getProductPrice(pid);
-    btn.querySelector('.btn-revenue').textContent = '¥' + rev.toFixed(1);
-    btn.classList.add('flash-inc');
-    setTimeout(() => btn.classList.remove('flash-inc'), 200);
-    if (navigator.vibrate) navigator.vibrate(20);
-    playIncSound();
-    saveState(state);
-    updateTopBar();
+    if (subMode) {
+      // Subtraction mode: short press = -1 (sell one)
+      if (state.todayStocks[pid] === undefined || state.todayStocks[pid] === null) {
+        showToast('请先设置初始库存');
+        return;
+      }
+      if (state.todayStocks[pid] <= 0) {
+        showToast('库存已用完');
+        return;
+      }
+      state.todayStocks[pid]--;
+      logClick(pid, -1);
+      updateBtnDisplay(btn, pid);
+      btn.classList.add('flash-dec');
+      setTimeout(() => btn.classList.remove('flash-dec'), 200);
+      if (navigator.vibrate) navigator.vibrate(10);
+      playDecSound();
+      saveState(state);
+      updateTopBar();
+    } else {
+      // Addition mode: short press = +1
+      state.todayCounts[pid] = (state.todayCounts[pid] || 0) + 1;
+      logClick(pid, +1);
+      updateBtnDisplay(btn, pid);
+      btn.classList.add('flash-inc');
+      setTimeout(() => btn.classList.remove('flash-inc'), 200);
+      if (navigator.vibrate) navigator.vibrate(20);
+      playIncSound();
+      saveState(state);
+      updateTopBar();
+    }
   }
 
   function onLeave() {
@@ -1149,6 +1337,26 @@ function onBtnPointerDown(e) {
   btn.addEventListener('pointerup', onUp, { once: true });
   btn.addEventListener('pointerleave', onLeave, { once: true });
   btn.addEventListener('pointercancel', onLeave, { once: true });
+}
+
+function updateBtnDisplay(btn, pid) {
+  const p = state.products.find(p => p.id === pid);
+  if (!p) return;
+  if (state.settings.mode === 'sub') {
+    const stock = state.todayStocks[pid] !== undefined ? state.todayStocks[pid] : '--';
+    btn.querySelector('.btn-count').textContent = '剩余 ' + stock;
+    const sold = (state.todayClicks || []).filter(c => c.name === p.name && c.delta < 0).reduce((s, c) => s + Math.abs(c.delta) * c.price, 0);
+    btn.querySelector('.btn-revenue').textContent = '售出 ¥' + sold.toFixed(1);
+    // Low stock classes
+    if (typeof stock === 'number' && stock <= 3 && stock > 0) btn.classList.add('low-stock');
+    else btn.classList.remove('low-stock');
+    if (stock === 0) btn.classList.add('stock-out');
+    else btn.classList.remove('stock-out');
+  } else {
+    const count = state.todayCounts[pid] || 0;
+    btn.querySelector('.btn-count').textContent = count;
+    btn.querySelector('.btn-revenue').textContent = '¥' + (count * p.price).toFixed(1);
+  }
 }
 
 function getProductPrice(pid) {
@@ -1393,6 +1601,28 @@ function renderSettings() {
   // Sound toggle
   $soundToggle.classList.toggle('on', state.settings.soundEnabled);
 
+  // Mode toggle
+  document.querySelectorAll('.mode-opt').forEach(o => o.classList.toggle('active', o.dataset.mode === state.settings.mode));
+
+  // Stock setup button for subtraction mode
+  const stockBtn = document.getElementById('btnStockSetupSettings');
+  if (state.settings.mode === 'sub') {
+    if (!stockBtn) {
+      const vi = document.getElementById('versionInfo');
+      const div = document.createElement('div');
+      div.style.cssText = 'margin-top:10px;';
+      div.innerHTML = '<button class="btn btn-outline" style="width:100%;padding:12px;" id="btnStockSetupSettings">📦 设置初始库存</button>';
+      vi.parentNode.insertBefore(div, vi.nextSibling);
+    }
+    // Bind stock setup button
+    setTimeout(() => {
+      const b = document.getElementById('btnStockSetupSettings');
+      if (b) b.addEventListener('click', openStockSetup);
+    }, 0);
+  } else if (stockBtn) {
+    stockBtn.parentElement.remove();
+  }
+
   // Version info
   renderVersionInfo();
 }
@@ -1520,12 +1750,128 @@ function showUpgradeModal() {
   $modalUpgrade.classList.add('show');
 }
 
+// ==================== STOCK SETUP (subtraction mode) ====================
+let stockSetupData = {}; // { pid: stockVal } temp storage during setup
+
+function openStockSetup() {
+  stockSetupData = {};
+  // Pre-fill from todayStocks if already set, otherwise from yesterday's remaining
+  state.products.forEach(p => {
+    const cur = state.todayStocks[p.id];
+    if (cur !== undefined && cur !== null) {
+      stockSetupData[p.id] = cur;
+    } else {
+      stockSetupData[p.id] = null;
+    }
+  });
+  renderStockSetup();
+  document.getElementById('modalStockSetup').classList.add('show');
+}
+
+function renderStockSetup() {
+  const $list = document.getElementById('stockList');
+  $list.innerHTML = state.products.map(p => {
+    const val = stockSetupData[p.id];
+    const displayVal = val !== null && val !== undefined ? val : '--';
+    const unsetClass = val === null || val === undefined ? ' unset' : '';
+    return `
+      <div class="stock-row">
+        <div class="stock-row-dot" style="background:${p.color}"></div>
+        <span class="stock-row-name">${escHtml(p.name)}</span>
+        <div class="stock-row-stepper">
+          <button class="stock-row-btn" data-action="dec" data-pid="${p.id}">−</button>
+          <input class="stock-row-val${unsetClass}" data-pid="${p.id}" id="stockVal_${p.id}" value="${displayVal}" inputmode="numeric" pattern="[0-9]*">
+          <button class="stock-row-btn" data-action="inc" data-pid="${p.id}">+</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Bind stepper buttons
+  $list.querySelectorAll('[data-action="inc"]').forEach(btn => {
+    btn.addEventListener('click', () => adjustStock(btn.dataset.pid, 1));
+  });
+  $list.querySelectorAll('[data-action="dec"]').forEach(btn => {
+    btn.addEventListener('click', () => adjustStock(btn.dataset.pid, -1));
+  });
+  // Bind direct input
+  $list.querySelectorAll('.stock-row-val').forEach(input => {
+    input.addEventListener('input', () => {
+      const pid = input.dataset.pid;
+      const v = parseInt(input.value);
+      if (!isNaN(v) && v >= 0) {
+        stockSetupData[pid] = v;
+        input.classList.remove('unset');
+      }
+    });
+  });
+}
+
+function adjustStock(pid, delta) {
+  const cur = stockSetupData[pid] !== null && stockSetupData[pid] !== undefined ? stockSetupData[pid] : 0;
+  const next = Math.max(0, cur + delta);
+  stockSetupData[pid] = next;
+  const input = document.getElementById('stockVal_' + pid);
+  if (input) {
+    input.value = next;
+    input.classList.remove('unset');
+  }
+}
+
+// Reuse yesterday's remaining stock
+document.getElementById('btnStockReuse').addEventListener('click', () => {
+  const yesterday = getYesterdayStr();
+  const hist = state.history[yesterday];
+  state.products.forEach(p => {
+    let prevStock = null;
+    if (hist && hist.stocks && hist.stocks[p.id] !== undefined) {
+      prevStock = hist.stocks[p.id];
+    }
+    stockSetupData[p.id] = prevStock;
+  });
+  renderStockSetup();
+  showToast('已填入昨日剩余库存');
+});
+
+document.getElementById('btnStockConfirm').addEventListener('click', () => {
+  let allSet = true;
+  state.products.forEach(p => {
+    const v = stockSetupData[p.id];
+    if (v !== null && v !== undefined && v >= 0) {
+      state.todayStocks[p.id] = v;
+    } else {
+      allSet = false;
+    }
+  });
+  if (!allSet) {
+    showToast('请为所有产品设置库存数量');
+    return;
+  }
+  saveState(state);
+  document.getElementById('modalStockSetup').classList.remove('show');
+  renderGrid();
+  updateTopBar();
+  showToast('库存已设置，开始售卖！');
+});
+
+document.getElementById('modalStockSetup').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modalStockSetup')) {
+    document.getElementById('modalStockSetup').classList.remove('show');
+  }
+});
+
+function getYesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 function deleteProduct(idx) {
   const p = state.products[idx];
   if (!confirm('确定删除「' + p.name + '」？')) return;
   const pid = p.id;
   state.products.splice(idx, 1);
   delete state.todayCounts[pid];
+  delete state.todayStocks[pid];
   saveState(state);
   renderSettings();
   renderGrid();
@@ -1553,6 +1899,25 @@ $soundToggle.addEventListener('click', () => {
   $soundToggle.classList.toggle('on', state.settings.soundEnabled);
   saveState(state);
   showToast(state.settings.soundEnabled ? '音效已开启' : '音效已关闭');
+});
+
+// Counting mode toggle
+document.getElementById('modeToggle').addEventListener('click', (e) => {
+  const opt = e.target.closest('.mode-opt');
+  if (!opt) return;
+  const newMode = opt.dataset.mode;
+  if (newMode === state.settings.mode) return;
+  state.settings.mode = newMode;
+  document.querySelectorAll('.mode-opt').forEach(o => o.classList.toggle('active', o.dataset.mode === newMode));
+  saveState(state);
+  if (newMode === 'sub' && Object.keys(state.todayStocks).length === 0) {
+    openStockSetup();
+  } else {
+    renderGrid();
+    updateTopBar();
+  }
+  renderSettings();
+  showToast(newMode === 'sub' ? '已切换到减法模式' : '已切换到加法模式');
 });
 
 // Layout toggle
@@ -1587,25 +1952,39 @@ function renderHistory() {
   }
   $historyList.innerHTML = dates.map(date => {
     const day = state.history[date];
+    const dayMode = day.mode || 'add';
     const counts = day.counts || {};
-    const entries = Object.entries(counts).filter(([,c]) => c > 0);
-    const total = entries.reduce((s, [,c]) => s+c, 0);
+    const stocks = day.stocks || {};
+    let entries, total;
+    if (dayMode === 'sub') {
+      entries = Object.entries(stocks).filter(([,s]) => s > 0);
+      total = entries.reduce((s, [,stock]) => s+stock, 0);
+    } else {
+      entries = Object.entries(counts).filter(([,c]) => c > 0);
+      total = entries.reduce((s, [,c]) => s+c, 0);
+    }
+    const label = dayMode === 'sub' ? '剩' : '';
     return `
       <div class="history-day">
         <div class="history-day-header">
-          <span class="history-day-date">${date}</span>
-          <span class="history-day-total">${total}件 · ¥${(day.totalRevenue||0).toFixed(1)}</span>
+          <span class="history-day-date">${date} <span class="mode-badge ${dayMode}">${dayMode === 'sub' ? '减法' : '加法'}</span></span>
+          <span class="history-day-total">${label}${total}件 · ¥${(day.totalRevenue||0).toFixed(1)}</span>
         </div>
-        ${entries.map(([pid, cnt]) => {
+        ${entries.map(([pid, val]) => {
           const p = state.products.find(p => p.id === pid);
           const name = p ? p.name : '(已删除)';
           const color = p ? p.color : '#999';
           const price = p ? p.price : 0;
-          return `
-            <div class="history-row">
-              <span class="history-row-name"><span class="history-row-dot" style="background:${color}"></span>${escHtml(name)}</span>
-              <span class="history-row-count">${cnt}件 ¥${(cnt*price).toFixed(1)}</span>
-            </div>`;
+          const amount = (val * price).toFixed(1);
+          let display;
+          if (dayMode === 'sub') {
+            const clicksForDay = (day.clicks || []).filter(c => c.name === name);
+            const sold = clicksForDay.filter(c => c.delta < 0).reduce((s, c) => s + Math.abs(c.delta), 0);
+            display = '剩余' + val + '件 售出' + sold + '件 ¥' + amount;
+          } else {
+            display = val + '件 ¥' + amount;
+          }
+          return '<div class="history-row"><span class="history-row-name"><span class="history-row-dot" style="background:' + color + '"></span>' + escHtml(name) + '</span><span class="history-row-count">' + display + '</span></div>';
         }).join('')}
       </div>
     `;
@@ -1616,6 +1995,7 @@ function renderHistory() {
 document.getElementById('btnResetToday').addEventListener('click', () => {
   if (!confirm('确定要重置今日所有计数吗？此操作不可撤销。')) return;
   state.todayCounts = {};
+  state.todayStocks = {};
   state.todayClicks = [];
   saveState(state);
   renderGrid();
@@ -1624,55 +2004,51 @@ document.getElementById('btnResetToday').addEventListener('click', () => {
   showToast('今日计数已重置');
 });
 
-// Export CSV
+// Export CSV — unified single-table, mode-aware
 document.getElementById('btnExport').addEventListener('click', () => {
   const dates = Object.keys(state.history).sort();
-  if (dates.length === 0 && getTodayTotal(state) === 0) {
-    showToast('暂无数据可导出');
-    return;
+  const subMode = state.settings.mode === 'sub';
+  const today = state.todayDate;
+  const clicks = (state.todayClicks || []).slice();
+
+  if (clicks.length === 0) {
+    let hasHistoryClicks = false;
+    dates.forEach(date => {
+      if ((state.history[date].clicks || []).length > 0) hasHistoryClicks = true;
+    });
+    if (!hasHistoryClicks) { showToast('暂无数据可导出'); return; }
   }
 
-  let csv = '日期,产品,数量,单价,金额\n';
-  // Today aggregated
-  const today = state.todayDate;
-  state.products.forEach(p => {
-    const cnt = state.todayCounts[p.id] || 0;
-    if (cnt > 0) {
-      csv += `${today},${p.name},${cnt},${p.price},${(cnt*p.price).toFixed(1)}\n`;
-    }
-  });
-  // History aggregated
-  dates.forEach(date => {
-    const day = state.history[date];
-    const counts = day.counts || {};
-    state.products.forEach(p => {
-      const cnt = counts[p.id] || 0;
-      if (cnt > 0) {
-        csv += `${date},${p.name},${cnt},${p.price},${(cnt*p.price).toFixed(1)}\n`;
+  let csv = subMode
+    ? '日期,时间,产品,变动,剩余,单价,金额\n'
+    : '日期,时间,产品,变动,累计,单价,金额\n';
+
+  function writeClicks(clks, date, runningMap) {
+    const rows = [];
+    clks.forEach(c => {
+      const price = c.price || 0;
+      const amount = (c.delta * price).toFixed(1);
+      runningMap[c.name] = (runningMap[c.name] || 0) + c.delta;
+      if (subMode) {
+        rows.push(date + ',' + c.time + ',' + c.name + ',' + (c.delta > 0 ? '+' + c.delta : c.delta) + ',' + runningMap[c.name] + ',' + price + ',' + amount);
+      } else {
+        const cum = Math.max(0, runningMap[c.name]);
+        rows.push(date + ',' + c.time + ',' + c.name + ',' + (c.delta > 0 ? '+' + c.delta : c.delta) + ',' + cum + ',' + price + ',' + amount);
       }
     });
-    Object.entries(counts).forEach(([pid, cnt]) => {
-      if (cnt > 0 && !state.products.find(p => p.id === pid)) {
-        csv += `${date},(已删除产品),${cnt},0,0\n`;
-      }
-    });
-  });
+    return rows.join('\n');
+  }
 
-  // Click-level detail
-  csv += '\n--- 详细点击记录 ---\n日期,时间,产品,变动,单价,金额\n';
-  // Today clicks
-  (state.todayClicks || []).forEach(c => {
-    csv += `${today},${c.time},${c.name},${c.delta > 0 ? '+' + c.delta : c.delta},${c.price},${(c.delta*c.price).toFixed(1)}\n`;
-  });
-  // History clicks
+  const todayRows = writeClicks(clicks, today, {});
+  if (todayRows) csv += todayRows + '\n';
+
   dates.forEach(date => {
-    const clicks = state.history[date].clicks || [];
-    clicks.forEach(c => {
-      csv += `${date},${c.time},${c.name},${c.delta > 0 ? '+' + c.delta : c.delta},${c.price},${(c.delta*c.price).toFixed(1)}\n`;
-    });
+    const hClicks = state.history[date].clicks || [];
+    const rows = writeClicks(hClicks, date, {});
+    if (rows) csv += rows + '\n';
   });
 
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1681,6 +2057,7 @@ document.getElementById('btnExport').addEventListener('click', () => {
   URL.revokeObjectURL(url);
   showToast('CSV 已下载');
 });
+
 
 // ==================== TOAST ====================
 let toastTimer;
