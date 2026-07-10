@@ -645,7 +645,11 @@ html, body {
 .stock-actions .btn { width: 100%; text-align: center; padding: 12px; font-size: calc(var(--font-size) * 0.9); }
 
 /* ============ Low Stock Warning ============ */
-.product-btn.low-stock { box-shadow: 0 0 0 3px rgba(239,68,68,0.5), 0 2px 8px rgba(0,0,0,0.15); }
+.product-btn.low-stock { animation: pulseWarn 1.5s ease-in-out infinite; }
+@keyframes pulseWarn {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.4), 0 2px 8px rgba(0,0,0,0.15); }
+}
 .product-btn.stock-out { opacity: 0.5; filter: grayscale(0.4); }
 
 /* ============ Mode Badge in Top Bar ============ */
@@ -687,52 +691,25 @@ html, body {
   <!-- Tab 2: Settings -->
   <div class="page" id="pageSettings">
     <div class="settings-scroll">
-      <!-- Products -->
+      <!-- Version -->
       <div class="settings-section">
-        <h3>产品管理</h3>
-        <div id="productList"></div>
-        <div class="add-product-form" id="addProductForm">
-          <div class="form-row">
-            <input class="input" id="newName" placeholder="产品名称" maxlength="10">
-            <input class="input" id="newPrice" type="number" placeholder="单价" min="0" step="0.5" style="width:80px;flex:none;">
-            <input type="color" class="color-input" id="newColor" value="#4f46e5">
-            <button class="btn btn-primary btn-sm" id="btnAdd">+添加</button>
-          </div>
-        </div>
+        <h3>版本信息</h3>
+        <div class="version-info" id="versionInfo"></div>
       </div>
 
-      <!-- Template -->
+      <!-- Layout -->
       <div class="settings-section">
-        <h3>网格模板</h3>
+        <h3>布局调整</h3>
         <div class="template-grid" id="templateGrid">
           <div class="template-opt active" data-tpl="6"><span class="tpl-icon">⊞</span>6宫格</div>
           <div class="template-opt" data-tpl="10"><span class="tpl-icon">⊟</span>10宫格</div>
           <div class="template-opt" data-tpl="20"><span class="tpl-icon">⊟⊟</span>20宫格</div>
           <div class="template-opt" data-tpl="40"><span class="tpl-icon">⊞⊞</span>40宫格</div>
         </div>
-      </div>
-
-      <!-- Layout Edit -->
-      <div class="settings-section">
-        <h3>布局调整</h3>
         <div class="toggle-row">
           <span class="toggle-label">编辑布局（可拖拽按钮右下角调整大小）</span>
           <div class="toggle" id="layoutToggle"></div>
         </div>
-      </div>
-
-      <!-- Counting Mode -->
-      <div class="settings-section">
-        <h3>计数模式</h3>
-        <div class="mode-toggle-row" id="modeToggle">
-          <div class="mode-opt active" data-mode="add">➕ 加法<br><small>点一下 +1</small></div>
-          <div class="mode-opt" data-mode="sub">➖ 减法<br><small>点一下 −1</small></div>
-        </div>
-      </div>
-
-      <!-- Appearance -->
-      <div class="settings-section">
-        <h3>外观设置</h3>
         <div class="slider-row">
           <label>圆角</label>
           <input type="range" id="radiusSlider" min="0" max="30" value="12">
@@ -749,10 +726,27 @@ html, body {
         </div>
       </div>
 
-      <!-- Version -->
+      <!-- Counting Mode -->
       <div class="settings-section">
-        <h3>版本信息</h3>
-        <div class="version-info" id="versionInfo"></div>
+        <h3>计数模式</h3>
+        <div class="mode-toggle-row" id="modeToggle">
+          <div class="mode-opt active" data-mode="add">➕ 加法<br><small>点一下 +1</small></div>
+          <div class="mode-opt" data-mode="sub">➖ 减法<br><small>点一下 −1</small></div>
+        </div>
+      </div>
+
+      <!-- Products -->
+      <div class="settings-section">
+        <h3>产品管理</h3>
+        <div id="productList"></div>
+        <div class="add-product-form" id="addProductForm">
+          <div class="form-row">
+            <input class="input" id="newName" placeholder="产品名称" maxlength="10">
+            <input class="input" id="newPrice" type="number" placeholder="单价" min="0" step="0.5" style="width:80px;flex:none;">
+            <input type="color" class="color-input" id="newColor" value="#4f46e5">
+            <button class="btn btn-primary btn-sm" id="btnAdd">+添加</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1170,7 +1164,7 @@ function renderGrid() {
       count = state.todayStocks[p.id] !== undefined ? state.todayStocks[p.id] : '--';
       revenue = (state.todayClicks || []).filter(c => c.name === p.name && c.delta < 0).reduce((s, c) => s + Math.abs(c.delta) * c.price, 0);
       // Low stock warning
-      if (typeof count === 'number' && count <= 3 && count > 0) btn.classList.add('low-stock');
+      if (typeof count === 'number' && count < 2 && count > 0) btn.classList.add('low-stock');
       if (count === 0) btn.classList.add('stock-out');
     } else {
       count = state.todayCounts[p.id] || 0;
@@ -1347,7 +1341,7 @@ function updateBtnDisplay(btn, pid) {
     const sold = (state.todayClicks || []).filter(c => c.name === p.name && c.delta < 0).reduce((s, c) => s + Math.abs(c.delta) * c.price, 0);
     btn.querySelector('.btn-revenue').textContent = '售出 ¥' + sold.toFixed(1);
     // Low stock classes
-    if (typeof stock === 'number' && stock <= 3 && stock > 0) btn.classList.add('low-stock');
+    if (typeof stock === 'number' && stock < 2 && stock > 0) btn.classList.add('low-stock');
     else btn.classList.remove('low-stock');
     if (stock === 0) btn.classList.add('stock-out');
     else btn.classList.remove('stock-out');
