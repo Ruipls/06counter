@@ -925,8 +925,10 @@ function getDateStr() {
 
 function calcDayRevenue(state) {
   if (state.settings.mode === 'sub') {
-    return (state.todayClicks || []).reduce((sum, c) => {
-      return sum + (c.delta < 0 ? Math.abs(c.delta) * c.price : 0);
+    // Net revenue: sum of -(delta * price) per product
+    return state.products.reduce((sum, p) => {
+      const totalDelta = (state.todayClicks || []).filter(c => c.name === p.name).reduce((s, c) => s + c.delta, 0);
+      return sum + Math.max(0, -totalDelta) * p.price;
     }, 0);
   }
   return state.products.reduce((sum, p) => {
@@ -936,7 +938,11 @@ function calcDayRevenue(state) {
 
 function getTodayTotal(state) {
   if (state.settings.mode === 'sub') {
-    return (state.todayClicks || []).filter(c => c.delta < 0).reduce((s, c) => s + Math.abs(c.delta), 0);
+    // Net sold: sum of all negative deltas minus undos
+    return state.products.reduce((s, p) => {
+      const totalDelta = (state.todayClicks || []).filter(c => c.name === p.name).reduce((sum, c) => sum + c.delta, 0);
+      return s + Math.max(0, -totalDelta);
+    }, 0);
   }
   return Object.values(state.todayCounts).reduce((a,b) => a+b, 0);
 }
@@ -1195,7 +1201,8 @@ function renderGrid() {
     let count, revenue;
     if (subMode) {
       count = state.todayStocks[p.id] !== undefined ? state.todayStocks[p.id] : '--';
-      revenue = (state.todayClicks || []).filter(c => c.name === p.name && c.delta < 0).reduce((s, c) => s + Math.abs(c.delta) * c.price, 0);
+      const totalDelta = (state.todayClicks || []).filter(c => c.name === p.name).reduce((s, c) => s + c.delta, 0);
+      revenue = Math.max(0, -totalDelta) * p.price;
       // Low stock warning
       if (typeof count === 'number' && count < 2 && count > 0) btn.classList.add('low-stock');
       if (count === 0) btn.classList.add('stock-out');
@@ -1355,8 +1362,9 @@ function updateBtnDisplay(btn, pid) {
   if (state.settings.mode === 'sub') {
     const stock = state.todayStocks[pid] !== undefined ? state.todayStocks[pid] : '--';
     btn.querySelector('.btn-count').textContent = stock;
-    const sold = (state.todayClicks || []).filter(c => c.name === p.name && c.delta < 0).reduce((s, c) => s + Math.abs(c.delta) * c.price, 0);
-    btn.querySelector('.btn-revenue').textContent = '售出 ¥' + sold.toFixed(1);
+    const totalDelta = (state.todayClicks || []).filter(c => c.name === p.name).reduce((s, c) => s + c.delta, 0);
+    const netSold = Math.max(0, -totalDelta);
+    btn.querySelector('.btn-revenue').textContent = '售出 ¥' + (netSold * p.price).toFixed(1);
     // Low stock classes
     if (typeof stock === 'number' && stock < 2 && stock > 0) btn.classList.add('low-stock');
     else btn.classList.remove('low-stock');
