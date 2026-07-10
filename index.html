@@ -733,6 +733,7 @@ html, body {
           <div class="mode-opt active" data-mode="add">➕ 加法<br><small>点一下 +1</small></div>
           <div class="mode-opt" data-mode="sub">➖ 减法<br><small>点一下 −1</small></div>
         </div>
+        <button class="btn btn-outline" style="width:100%;padding:12px;margin-top:10px;display:none;" id="btnStockSetupSettings">📦 设置初始库存</button>
       </div>
 
       <!-- Products -->
@@ -1597,23 +1598,10 @@ function renderSettings() {
   // Mode toggle
   document.querySelectorAll('.mode-opt').forEach(o => o.classList.toggle('active', o.dataset.mode === state.settings.mode));
 
-  // Stock setup button for subtraction mode
+  // Stock setup button — show/hide based on mode
   const stockBtn = document.getElementById('btnStockSetupSettings');
-  if (state.settings.mode === 'sub') {
-    if (!stockBtn) {
-      const vi = document.getElementById('versionInfo');
-      const div = document.createElement('div');
-      div.style.cssText = 'margin-top:10px;';
-      div.innerHTML = '<button class="btn btn-outline" style="width:100%;padding:12px;" id="btnStockSetupSettings">📦 设置初始库存</button>';
-      vi.parentNode.insertBefore(div, vi.nextSibling);
-    }
-    // Bind stock setup button
-    setTimeout(() => {
-      const b = document.getElementById('btnStockSetupSettings');
-      if (b) b.addEventListener('click', openStockSetup);
-    }, 0);
-  } else if (stockBtn) {
-    stockBtn.parentElement.remove();
+  if (stockBtn) {
+    stockBtn.style.display = state.settings.mode === 'sub' ? '' : 'none';
   }
 
   // Version info
@@ -1928,6 +1916,9 @@ document.getElementById('modeToggle').addEventListener('click', (e) => {
   renderSettings();
   showToast(newMode === 'sub' ? '已切换到减法模式' : '已切换到加法模式');
 });
+
+// Stock setup button in settings (static, bind once)
+document.getElementById('btnStockSetupSettings').addEventListener('click', openStockSetup);
 
 // Layout toggle
 $layoutToggle.addEventListener('click', () => {
