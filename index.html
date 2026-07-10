@@ -925,7 +925,9 @@ function getDateStr() {
 
 function calcDayRevenue(state) {
   if (state.settings.mode === 'sub') {
-    return (state.todayClicks || []).reduce((sum, c) => sum + Math.abs(c.delta) * c.price, 0);
+    return (state.todayClicks || []).reduce((sum, c) => {
+      return sum + (c.delta < 0 ? Math.abs(c.delta) * c.price : 0);
+    }, 0);
   }
   return state.products.reduce((sum, p) => {
     return sum + (state.todayCounts[p.id] || 0) * p.price;
