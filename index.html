@@ -640,7 +640,7 @@ html, body {
   outline: none;
 }
 .stock-row-val:focus { box-shadow: 0 0 0 2px var(--accent); }
-.stock-row-val.unset { color: var(--text-secondary); font-weight: 400; font-size: 14px; }
+.stock-row-val.unset { color: var(--text-secondary); }
 .stock-actions { display: flex; flex-direction: column; gap: 8px; }
 .stock-actions .btn { width: 100%; text-align: center; padding: 12px; font-size: calc(var(--font-size) * 0.9); }
 
@@ -1181,7 +1181,7 @@ function renderGrid() {
       revenue = count * p.price;
     }
 
-    const countLabel = subMode ? '剩余 ' : '';
+    const countLabel = '';
     const revLabel = subMode ? '售出 ' : '';
 
     btn.innerHTML = `
@@ -1344,7 +1344,7 @@ function updateBtnDisplay(btn, pid) {
   if (!p) return;
   if (state.settings.mode === 'sub') {
     const stock = state.todayStocks[pid] !== undefined ? state.todayStocks[pid] : '--';
-    btn.querySelector('.btn-count').textContent = '剩余 ' + stock;
+    btn.querySelector('.btn-count').textContent = stock;
     const sold = (state.todayClicks || []).filter(c => c.name === p.name && c.delta < 0).reduce((s, c) => s + Math.abs(c.delta) * c.price, 0);
     btn.querySelector('.btn-revenue').textContent = '售出 ¥' + sold.toFixed(1);
     // Low stock classes
@@ -1780,7 +1780,7 @@ function renderStockSetup() {
         <span class="stock-row-name">${escHtml(p.name)}</span>
         <div class="stock-row-stepper">
           <button class="stock-row-btn" data-action="dec" data-pid="${p.id}">−</button>
-          <input class="stock-row-val${unsetClass}" data-pid="${p.id}" id="stockVal_${p.id}" value="${displayVal}" inputmode="numeric" pattern="[0-9]*">
+          <input type="number" class="stock-row-val${unsetClass}" data-pid="${p.id}" id="stockVal_${p.id}" value="${displayVal}" inputmode="numeric" min="0" step="1" placeholder="0" onfocus="this.select()">
           <button class="stock-row-btn" data-action="inc" data-pid="${p.id}">+</button>
         </div>
       </div>`;
@@ -1795,11 +1795,27 @@ function renderStockSetup() {
   });
   // Bind direct input
   $list.querySelectorAll('.stock-row-val').forEach(input => {
+    input.addEventListener('focus', () => {
+      if (input.classList.contains('unset')) {
+        input.value = '';
+        input.classList.remove('unset');
+      }
+      input.select();
+    });
     input.addEventListener('input', () => {
       const pid = input.dataset.pid;
       const v = parseInt(input.value);
       if (!isNaN(v) && v >= 0) {
         stockSetupData[pid] = v;
+        input.classList.remove('unset');
+      }
+    });
+    input.addEventListener('blur', () => {
+      const pid = input.dataset.pid;
+      const v = parseInt(input.value);
+      if (isNaN(v) || v < 0) {
+        input.value = '0';
+        stockSetupData[pid] = 0;
         input.classList.remove('unset');
       }
     });
