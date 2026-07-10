@@ -707,7 +707,7 @@ html, body {
           <div class="template-opt" data-tpl="40"><span class="tpl-icon">⊞⊞</span>40宫格</div>
         </div>
         <div class="toggle-row">
-          <span class="toggle-label">编辑布局（可拖拽按钮右下角调整大小）</span>
+          <span class="toggle-label">调整按钮大小，变换按钮位置</span>
           <div class="toggle" id="layoutToggle"></div>
         </div>
         <div class="slider-row">
@@ -960,13 +960,43 @@ function maskCode(code) {
 }
 
 function generateMachineCode() {
+  // Canvas fingerprint — rendering varies subtly across devices
+  let canvasHash = '';
+  try {
+    const c = document.createElement('canvas');
+    c.width = 200; c.height = 60;
+    const ctx = c.getContext('2d');
+    ctx.textBaseline = 'top';
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#f60';
+    ctx.fillRect(0, 0, 100, 30);
+    ctx.fillStyle = '#069';
+    ctx.fillText('计数助手 Count', 4, 16);
+    canvasHash = simpleHash(c.toDataURL().substring(0, 200));
+  } catch(e) { canvasHash = 'no-canvas'; }
+
+  // WebGL renderer — unique to GPU / driver version
+  let glRenderer = '';
+  try {
+    const gl = document.createElement('canvas').getContext('webgl');
+    if (gl) {
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      if (dbg) glRenderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '';
+    }
+  } catch(e) { glRenderer = ''; }
+
   const fp = [
     navigator.hardwareConcurrency || 1,
     navigator.platform || '',
     navigator.language || '',
+    screen.width || 0,
+    screen.height || 0,
+    window.devicePixelRatio || 1,
     screen.colorDepth || 24,
     navigator.maxTouchPoints || 0,
     new Date().getTimezoneOffset(),
+    canvasHash,
+    glRenderer,
     navigator.userAgentData ? navigator.userAgentData.platform : '',
   ].join('|');
   const hash = simpleHash(fp);
