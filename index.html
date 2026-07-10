@@ -645,11 +645,7 @@ html, body {
 .stock-actions .btn { width: 100%; text-align: center; padding: 12px; font-size: calc(var(--font-size) * 0.9); }
 
 /* ============ Low Stock Warning ============ */
-.product-btn.low-stock { animation: pulseWarn 1.5s ease-in-out infinite; }
-@keyframes pulseWarn {
-  0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-  50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.4), 0 2px 8px rgba(0,0,0,0.15); }
-}
+.product-btn.low-stock { box-shadow: 0 0 0 3px rgba(239,68,68,0.5), 0 2px 8px rgba(0,0,0,0.15); }
 .product-btn.stock-out { opacity: 0.5; filter: grayscale(0.4); }
 
 /* ============ Mode Badge in Top Bar ============ */
@@ -1212,13 +1208,16 @@ function renderGrid() {
     $grid.appendChild(empty);
   }
 
-  // In subtraction mode, add stock setup button below empty slots if no stock set
-  if (subMode && state.products.length > 0 && Object.keys(state.todayStocks).length === 0) {
+  // In subtraction mode, add stock setup/adjust button in grid footer
+  if (subMode && state.products.length > 0) {
     const setupRow = document.createElement('div');
     setupRow.style.cssText = 'grid-column:1/-1;padding:8px;';
-    setupRow.innerHTML = '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" id="btnStockSetupInline">📦 设置初始库存，开始售卖</button>';
+    if (Object.keys(state.todayStocks).length === 0) {
+      setupRow.innerHTML = '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" id="btnStockSetupInline">📦 设置初始库存，开始售卖</button>';
+    } else {
+      setupRow.innerHTML = '<button class="btn btn-outline" style="width:100%;padding:10px;font-size:14px;" id="btnStockSetupInline">📦 调整库存</button>';
+    }
     $grid.appendChild(setupRow);
-    // Bind after append
     setTimeout(() => {
       const btn = document.getElementById('btnStockSetupInline');
       if (btn) btn.addEventListener('click', openStockSetup);
