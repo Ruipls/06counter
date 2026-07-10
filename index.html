@@ -75,7 +75,7 @@ html, body {
 .topbar-stat-val { font-size:16px; font-weight:600; }
 
 /* ============ Page Container ============ */
-.page { display:none; flex-direction:column; flex:1; overflow:hidden; }
+.page { display:none; flex-direction:column; flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
 .page.active { display:flex; }
 
 /* ============ Count Page (Tab 1) ============ */
@@ -1201,22 +1201,6 @@ function renderGrid() {
       switchTab('settings');
     });
     $grid.appendChild(empty);
-  }
-
-  // In subtraction mode, add stock setup/adjust button in grid footer
-  if (subMode && state.products.length > 0) {
-    const setupRow = document.createElement('div');
-    setupRow.style.cssText = 'grid-column:1/-1;padding:8px;';
-    if (Object.keys(state.todayStocks).length === 0) {
-      setupRow.innerHTML = '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" id="btnStockSetupInline">📦 设置初始库存，开始售卖</button>';
-    } else {
-      setupRow.innerHTML = '<button class="btn btn-outline" style="width:100%;padding:10px;font-size:14px;" id="btnStockSetupInline">📦 调整库存</button>';
-    }
-    $grid.appendChild(setupRow);
-    setTimeout(() => {
-      const btn = document.getElementById('btnStockSetupInline');
-      if (btn) btn.addEventListener('click', openStockSetup);
-    }, 0);
   }
 }
 
