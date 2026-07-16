@@ -145,6 +145,39 @@ html, body {
   padding: 1px 5px;
   border-radius: 8px;
 }
+/* Long-press progress fill (A1): fills bottom-up, full at 500ms trigger */
+.product-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  pointer-events: none;
+  z-index: 1;
+}
+.product-btn.pressing::before {
+  animation: pressFill 0.35s linear 0.15s forwards;
+}
+@keyframes pressFill {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+/* First-use hint bar (A1) */
+.hint-bar {
+  margin: 8px 8px 0;
+  padding: 10px 14px;
+  background: #eef2ff;
+  color: var(--accent);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* flash feedback */
 .product-btn.flash-inc { animation: flashGreen 0.3s ease; }
 .product-btn.flash-dec { animation: flashRed 0.3s ease; }
@@ -1277,9 +1310,16 @@ function onBtnPointerDown(e) {
   const subMode = state.settings.mode === 'sub';
   let handled = false;
 
+  // A1: show long-press progress fill only when long-press has an effect
+  const canLongPress = subMode
+    ? (state.todayStocks[pid] !== undefined && state.todayStocks[pid] !== null)
+    : (state.todayCounts[pid] || 0) > 0;
+  if (canLongPress) btn.classList.add('pressing');
+
   const timer = setTimeout(() => {
     handled = true;
     btn._pressTimer = null;
+    btn.classList.remove('pressing');
     if (subMode) {
       // Subtraction mode: long press = +1 (undo/return)
       if (state.todayStocks[pid] === undefined || state.todayStocks[pid] === null) return;
@@ -1312,6 +1352,7 @@ function onBtnPointerDown(e) {
   function onUp() {
     clearTimeout(timer);
     btn._pressTimer = null;
+    btn.classList.remove('pressing');
     if (handled) return;
     if (subMode) {
       // Subtraction mode: short press = -1 (sell one)
@@ -1349,6 +1390,7 @@ function onBtnPointerDown(e) {
   function onLeave() {
     clearTimeout(timer);
     btn._pressTimer = null;
+    btn.classList.remove('pressing');
   }
 
   btn.addEventListener('pointerup', onUp, { once: true });
@@ -2103,6 +2145,24 @@ $fontSizeVal.textContent = state.settings.fontSize + 'px';
 // ==================== INITIAL RENDER ====================
 renderGrid();
 updateTopBar();
+
+// ==================== FIRST-USE HINT (A1) ====================
+(function showFirstUseHint() {
+  try { if (localStorage.getItem('counter-hint-seen')) return; } catch(e) { return; }
+  const bar = document.createElement('div');
+  bar.className = 'hint-bar';
+  bar.textContent = state.settings.mode === 'sub'
+    ? '💡 点一下卖出 1 件，按住 0.5 秒退货 +1'
+    : '💡 点一下 +1，按住 0.5 秒 −1';
+  const dismissTimer = setTimeout(dismiss, 5000);
+  function dismiss() {
+    clearTimeout(dismissTimer);
+    bar.remove();
+    try { localStorage.setItem('counter-hint-seen', '1'); } catch(e) {}
+  }
+  bar.addEventListener('click', dismiss);
+  document.getElementById('pageCount').insertBefore(bar, $grid);
+})();
 
 // ==================== PWA SERVICE WORKER ====================
 if ('serviceWorker' in navigator) {
