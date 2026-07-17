@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="auto">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -19,14 +19,44 @@
   --text: #1a1a2e;
   --text-secondary: #6b7280;
   --accent: #4f46e5;
+  --accent-soft: #eef2ff;
   --danger: #ef4444;
   --border: #e5e7eb;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);         /* 卡片层 */
+  --shadow-float: 0 10px 40px rgba(0,0,0,0.2);  /* 浮层（modal/拖拽） */
   --radius: 12px;
   --font-size: 16px;
+  /* 间距刻度 4/8/12/16/20 */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  /* 辅助字号档位（正文随 --font-size） */
+  --fs-xs: 11px; --fs-sm: 13px; --fs-md: 15px; --fs-lg: 17px;
   --nav-height: 49px;
   --topbar-height: 56px;
   --transition: 0.2s ease;
+}
+
+/* ============ Dark Mode (E3) ============ */
+:root[data-theme="dark"] {
+  --bg: #14161c;
+  --card-bg: #1e212a;
+  --text: #e7e9ee;
+  --text-secondary: #9aa1ad;
+  --accent-soft: #272b4a;
+  --border: #2e333d;
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-float: 0 10px 40px rgba(0,0,0,0.6);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg: #14161c;
+    --card-bg: #1e212a;
+    --text: #e7e9ee;
+    --text-secondary: #9aa1ad;
+    --accent-soft: #272b4a;
+    --border: #2e333d;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    --shadow-float: 0 10px 40px rgba(0,0,0,0.6);
+  }
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 html, body {
@@ -61,18 +91,19 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: var(--space-2) var(--space-4);
   height: var(--topbar-height);
   background: var(--card-bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .topbar-left { display:flex; flex-direction:column; }
-.topbar-date { font-size:13px; color:var(--text-secondary); }
+.topbar-date { font-size:var(--fs-sm); color:var(--text-secondary); }
 .topbar-total { font-size:18px; font-weight:700; }
 .topbar-right { display:flex; gap:16px; text-align:right; }
-.topbar-stat-label { font-size:11px; color:var(--text-secondary); }
-.topbar-stat-val { font-size:16px; font-weight:600; }
+.topbar-stat-label { font-size:var(--fs-xs); color:var(--text-secondary); }
+.topbar-stat-val { font-size:16px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:flex-end; gap:4px; }
+.topbar-stat-val .eye-icon { width:15px; height:15px; color:var(--text-secondary); flex-shrink:0; }
 
 /* ============ Page Container ============ */
 .page { display:none; flex-direction:column; flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
@@ -82,8 +113,8 @@ html, body {
 .grid-container {
   flex: 1;
   display: grid;
-  gap: 8px;
-  padding: 8px;
+  gap: var(--space-2);
+  padding: var(--space-2);
   grid-auto-rows: 1fr;
   touch-action: manipulation;
 }
@@ -126,25 +157,21 @@ html, body {
   max-width: 90%;
 }
 .product-btn .btn-count {
-  font-size: calc(var(--font-size) * 1.8);
+  font-size: calc(var(--font-size) * 2.2);
   line-height: 1;
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 .product-btn .btn-revenue {
   font-size: calc(var(--font-size) * 0.65);
-  opacity: 0.85;
-  margin-top: 2px;
+  opacity: 0.8;
+  margin-top: 3px;
+  font-weight: 500;
 }
-.product-btn .btn-price-tag {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  font-size: calc(var(--font-size) * 0.55);
-  opacity: 0.7;
-  background: rgba(255,255,255,0.2);
-  padding: 1px 5px;
-  border-radius: 8px;
-}
+/* Light-background buttons get dark text (A3, YIQ-based) */
+.product-btn.dark-text { color: #1a1a2e; }
+.product-btn.dark-text .btn-name,
+.product-btn.dark-text .btn-count { text-shadow: 0 1px 2px rgba(255,255,255,0.35); }
+
 /* Long-press progress fill (A1): fills bottom-up, full at 500ms trigger */
 .product-btn::before {
   content: '';
@@ -164,34 +191,74 @@ html, body {
   to   { transform: scaleY(1); }
 }
 
+/* Layout edit banner (C3) */
+.edit-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 8px 0;
+  padding: 8px 8px 8px 14px;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.edit-banner.show { display: flex; }
+
+/* Stock setup guide card (A7) */
+.stock-guide {
+  margin: 8px 8px 0;
+  padding: 12px 14px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius);
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.stock-guide:active { opacity: 0.85; }
+
 /* First-use hint bar (A1) */
 .hint-bar {
   margin: 8px 8px 0;
   padding: 10px 14px;
-  background: #eef2ff;
+  background: var(--accent-soft);
   color: var(--accent);
   border-radius: var(--radius);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   text-align: center;
   cursor: pointer;
   flex-shrink: 0;
 }
 
-/* flash feedback */
-.product-btn.flash-inc { animation: flashGreen 0.3s ease; }
-.product-btn.flash-dec { animation: flashRed 0.3s ease; }
-@keyframes flashGreen {
-  0%   { filter:brightness(1); transform:scale(1); }
-  25%  { filter:brightness(1.8); transform:scale(0.88); }
-  60%  { filter:brightness(1.15); transform:scale(1.03); }
-  100% { filter:brightness(1); transform:scale(1); }
+/* flash feedback (A4): overlay flash works on any base color */
+.product-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
 }
-@keyframes flashRed {
-  0%   { filter:brightness(1); transform:scale(1); }
-  25%  { filter:brightness(0.3); transform:scale(0.88); }
-  60%  { filter:brightness(0.85); transform:scale(1.03); }
-  100% { filter:brightness(1); transform:scale(1); }
+.product-btn.flash-inc,
+.product-btn.flash-dec { animation: flashBounce 0.3s ease; }
+.product-btn.flash-inc::after { background: #fff; animation: overlayFlash 0.3s ease; }
+.product-btn.flash-dec::after { background: #000; animation: overlayFlash 0.3s ease; }
+@keyframes flashBounce {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(0.88); }
+  60%  { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+@keyframes overlayFlash {
+  0%   { opacity: 0; }
+  25%  { opacity: 0.55; }
+  100% { opacity: 0; }
 }
 
 /* Grid resize handle */
@@ -236,7 +303,7 @@ html, body {
   z-index: 500;
   pointer-events: none;
   border-radius: var(--radius);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-float);
   transform: scale(1.06);
   opacity: 0.9;
   display: flex;
@@ -265,14 +332,14 @@ html, body {
 .settings-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   -webkit-overflow-scrolling: touch;
 }
 .settings-section {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 .settings-section h3 {
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -291,7 +358,9 @@ html, body {
   border-radius: var(--radius);
   margin-bottom: 8px;
   box-shadow: var(--shadow);
+  cursor: pointer; /* C6: whole row opens edit */
 }
+.product-item:active { background: var(--bg); }
 .product-item-color {
   width: 32px; height: 32px;
   border-radius: 8px;
@@ -307,7 +376,7 @@ html, body {
   text-overflow: ellipsis;
 }
 .product-item-price {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-secondary);
 }
 .product-item-actions { display:flex; gap:6px; flex-shrink:0; }
@@ -327,7 +396,16 @@ html, body {
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
-.btn-sm { padding: 4px 10px; font-size: calc(var(--font-size) * 0.75); }
+.btn-sm { padding: 6px 12px; min-height: 36px; font-size: calc(var(--font-size) * 0.75); }
+.btn-ghost-danger { background: transparent; color: var(--danger); border: none; font-weight: 600; }
+.btn-icon-lg {
+  width: 38px; height: 38px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-icon-lg svg { width: 16px; height: 16px; }
 .btn-icon { padding: 6px 8px; line-height:1; }
 
 /* Form inputs */
@@ -363,19 +441,30 @@ html, body {
   font-size: calc(var(--font-size) * 0.8);
   transition: all var(--transition);
 }
-.template-opt.active { border-color: var(--accent); background: #eef2ff; color: var(--accent); }
+.template-opt.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .template-opt:active { transform: scale(0.95); }
-.template-opt .tpl-icon {
-  display: block;
-  font-size: 20px;
-  margin-bottom: 4px;
+/* C5: mini grid thumbnails that mirror each template's real layout */
+.tpl-thumb {
+  display: grid;
+  gap: 2px;
+  width: 26px;
+  margin: 0 auto 5px;
 }
+.tpl-thumb i { display: block; background: currentColor; opacity: 0.7; border-radius: 1px; }
+.tpl-thumb.t2x3  { grid-template-columns: repeat(2, 1fr); }
+.tpl-thumb.t2x3 i  { height: 6px; }
+.tpl-thumb.t2x5  { grid-template-columns: repeat(2, 1fr); }
+.tpl-thumb.t2x5 i  { height: 3px; }
+.tpl-thumb.t4x5  { grid-template-columns: repeat(4, 1fr); }
+.tpl-thumb.t4x5 i  { height: 3px; }
+.tpl-thumb.t4x10 { grid-template-columns: repeat(4, 1fr); gap: 1px; }
+.tpl-thumb.t4x10 i { height: 2px; }
 
 /* Slider */
 .slider-row { display:flex; align-items:center; gap:10px; }
 .slider-row label { font-size: calc(var(--font-size) * 0.85); flex-shrink:0; min-width:50px; }
 .slider-row input[type=range] { flex:1; }
-.slider-row .slider-val { font-size:12px; color:var(--text-secondary); width:30px; text-align:center; }
+.slider-row .slider-val { font-size:var(--fs-xs); color:var(--text-secondary); width:30px; text-align:center; }
 
 /* Toggle switch for layout edit */
 .toggle-row {
@@ -406,6 +495,20 @@ html, body {
 }
 .toggle.on::after { transform: translateX(22px); }
 
+/* Preset color swatches (C4) */
+.color-swatches { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.swatch {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+}
+.swatch.selected {
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--card-bg);
+}
+
 /* Add product form */
 .add-product-form {
   background: var(--card-bg);
@@ -418,13 +521,13 @@ html, body {
 .history-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   -webkit-overflow-scrolling: touch;
 }
 .history-day {
   background: var(--card-bg);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: var(--space-3);
   margin-bottom: 10px;
   box-shadow: var(--shadow);
 }
@@ -436,8 +539,8 @@ html, body {
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
-.history-day-date { font-weight:700; font-size:15px; }
-.history-day-total { font-size:13px; color:var(--text-secondary); }
+.history-day-date { font-weight:700; font-size:var(--fs-md); }
+.history-day-total { font-size:var(--fs-sm); color:var(--text-secondary); }
 .history-row {
   display: flex;
   justify-content: space-between;
@@ -451,7 +554,7 @@ html, body {
 
 /* Action bar at bottom of history */
 .history-actions {
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   display: flex;
   gap: 10px;
   flex-shrink: 0;
@@ -459,6 +562,7 @@ html, body {
   border-top: 1px solid var(--border);
 }
 .history-actions .btn { flex:1; text-align:center; }
+.history-actions .btn-ghost-danger { flex:0 0 auto; }
 
 /* ============ Bottom Nav ============ */
 .bottom-nav {
@@ -489,7 +593,8 @@ html, body {
   gap: 1px;
 }
 .nav-item.active { color: var(--accent); }
-.nav-item .nav-icon { font-size: 20px; line-height:1; }
+.nav-item .nav-icon { display:flex; align-items:center; justify-content:center; line-height:1; }
+.nav-item .nav-icon svg { width: 20px; height: 20px; }
 
 /* ============ Modal ============ */
 .modal-overlay {
@@ -508,11 +613,11 @@ html, body {
   padding: 20px;
   width: 90%;
   max-width: 360px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-float);
 }
-.modal h3 { margin-bottom:14px; font-size:17px; }
+.modal h3 { margin-bottom:14px; font-size:var(--fs-lg); }
 .modal .form-row { margin-bottom:12px; }
-.modal .form-row label { font-size:13px; color:var(--text-secondary); min-width:40px; }
+.modal .form-row label { font-size:var(--fs-sm); color:var(--text-secondary); min-width:40px; }
 .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
 
 /* ============ Toast ============ */
@@ -525,7 +630,7 @@ html, body {
   color: #fff;
   padding: 10px 20px;
   border-radius: 20px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   z-index: 200;
   opacity: 0;
@@ -545,7 +650,7 @@ html, body {
   border-radius: 10px;
   letter-spacing: 0.5px;
 }
-.version-badge.free { background: #e5e7eb; color: #6b7280; }
+.version-badge.free { background: var(--border); color: var(--text-secondary); }
 .version-badge.pro  { background: #fbbf24; color: #92400e; }
 
 /* ============ Version Section (Settings) ============ */
@@ -571,7 +676,7 @@ html, body {
   margin-left: 4px;
 }
 .version-info .version-code {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-secondary);
   margin-bottom: 10px;
   word-break: break-all;
@@ -596,7 +701,7 @@ html, body {
 }
 .version-info .activate-input:focus { border-color: var(--accent); }
 .version-info .contact-hint {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-secondary);
   margin-top: 10px;
   line-height: 1.5;
@@ -632,7 +737,7 @@ html, body {
   font-size: calc(var(--font-size) * 0.85);
   transition: all var(--transition);
 }
-.mode-opt.active { border-color: var(--accent); background: #eef2ff; color: var(--accent); }
+.mode-opt.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 
 /* ============ Stock Setup Modal ============ */
 .stock-list { max-height: 50vh; overflow-y: auto; margin-bottom: 12px; }
@@ -710,7 +815,7 @@ html, body {
     </div>
     <div class="topbar-right">
       <div>
-        <div class="topbar-stat-label">收入</div>
+        <div class="topbar-stat-label" id="topRevLabel">收入</div>
         <div class="topbar-stat-val" id="topRevenue">¥0</div>
       </div>
     </div>
@@ -718,30 +823,63 @@ html, body {
 
   <!-- Tab 1: Count -->
   <div class="page active" id="pageCount">
+    <div class="edit-banner" id="editBanner">
+      <span>布局编辑中 · 拖角调大小 / 长按拖动换位</span>
+      <button class="btn btn-primary btn-sm" id="btnEditDone">完成</button>
+    </div>
     <div class="grid-container grid-6" id="gridContainer"></div>
   </div>
 
   <!-- Tab 2: Settings -->
   <div class="page" id="pageSettings">
     <div class="settings-scroll">
-      <!-- Version -->
+      <!-- Products -->
       <div class="settings-section">
-        <h3>版本信息</h3>
-        <div class="version-info" id="versionInfo"></div>
+        <h3>产品管理</h3>
+        <div id="productList"></div>
+        <div class="add-product-form" id="addProductForm">
+          <div class="color-swatches" id="newSwatches"></div>
+          <div class="form-row">
+            <input class="input" id="newName" placeholder="产品名称" maxlength="10">
+            <input class="input" id="newPrice" type="number" placeholder="单价" min="0" step="0.5" style="width:80px;flex:none;">
+            <input type="color" class="color-input" id="newColor" value="#4f46e5">
+            <button class="btn btn-primary btn-sm" id="btnAdd">+添加</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Counting Mode -->
+      <div class="settings-section">
+        <h3>计数模式</h3>
+        <div class="mode-toggle-row" id="modeToggle">
+          <div class="mode-opt active" data-mode="add">🛒 卖出计数<br><small>卖一件点一下，从 0 累加</small></div>
+          <div class="mode-opt" data-mode="sub">📦 库存倒数<br><small>先登记库存，卖一件减一件</small></div>
+        </div>
+        <button class="btn btn-outline" style="width:100%;padding:12px;margin-top:10px;display:none;" id="btnStockSetupSettings">📦 设置初始库存</button>
       </div>
 
       <!-- Layout -->
       <div class="settings-section">
         <h3>布局调整</h3>
         <div class="template-grid" id="templateGrid">
-          <div class="template-opt active" data-tpl="6"><span class="tpl-icon">⊞</span>6宫格</div>
-          <div class="template-opt" data-tpl="10"><span class="tpl-icon">⊟</span>10宫格</div>
-          <div class="template-opt" data-tpl="20"><span class="tpl-icon">⊟⊟</span>20宫格</div>
-          <div class="template-opt" data-tpl="40"><span class="tpl-icon">⊞⊞</span>40宫格</div>
+          <div class="template-opt active" data-tpl="6"><span class="tpl-thumb t2x3"><i></i><i></i><i></i><i></i><i></i><i></i></span>6宫格</div>
+          <div class="template-opt" data-tpl="10"><span class="tpl-thumb t2x5"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>10宫格</div>
+          <div class="template-opt" data-tpl="20"><span class="tpl-thumb t4x5"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>20宫格</div>
+          <div class="template-opt" data-tpl="40"><span class="tpl-thumb t4x10"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>40宫格</div>
         </div>
         <div class="toggle-row">
           <span class="toggle-label">调整按钮大小，变换按钮位置</span>
           <div class="toggle" id="layoutToggle"></div>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="settings-section">
+        <h3>外观</h3>
+        <div class="mode-toggle-row" id="themeToggle" style="margin-bottom:12px;">
+          <div class="mode-opt" data-theme="auto">🌗 跟随系统</div>
+          <div class="mode-opt" data-theme="light">☀️ 浅色</div>
+          <div class="mode-opt" data-theme="dark">🌙 深色</div>
         </div>
         <div class="slider-row">
           <label>圆角</label>
@@ -759,28 +897,10 @@ html, body {
         </div>
       </div>
 
-      <!-- Counting Mode -->
+      <!-- Version -->
       <div class="settings-section">
-        <h3>计数模式</h3>
-        <div class="mode-toggle-row" id="modeToggle">
-          <div class="mode-opt active" data-mode="add">➕ 加法<br><small>点一下 +1</small></div>
-          <div class="mode-opt" data-mode="sub">➖ 减法<br><small>点一下 −1</small></div>
-        </div>
-        <button class="btn btn-outline" style="width:100%;padding:12px;margin-top:10px;display:none;" id="btnStockSetupSettings">📦 设置初始库存</button>
-      </div>
-
-      <!-- Products -->
-      <div class="settings-section">
-        <h3>产品管理</h3>
-        <div id="productList"></div>
-        <div class="add-product-form" id="addProductForm">
-          <div class="form-row">
-            <input class="input" id="newName" placeholder="产品名称" maxlength="10">
-            <input class="input" id="newPrice" type="number" placeholder="单价" min="0" step="0.5" style="width:80px;flex:none;">
-            <input type="color" class="color-input" id="newColor" value="#4f46e5">
-            <button class="btn btn-primary btn-sm" id="btnAdd">+添加</button>
-          </div>
-        </div>
+        <h3>版本信息</h3>
+        <div class="version-info" id="versionInfo"></div>
       </div>
     </div>
   </div>
@@ -789,7 +909,7 @@ html, body {
   <div class="page" id="pageHistory">
     <div class="history-scroll" id="historyList"></div>
     <div class="history-actions">
-      <button class="btn btn-outline" id="btnResetToday">重置今日</button>
+      <button class="btn btn-ghost-danger" id="btnResetToday">重置今日</button>
       <button class="btn btn-primary" id="btnExport">导出 CSV</button>
     </div>
   </div>
@@ -797,13 +917,13 @@ html, body {
   <!-- Bottom Nav -->
   <div class="bottom-nav">
     <div class="nav-item active" data-tab="count">
-      <span class="nav-icon">●</span>计数
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>计数
     </div>
     <div class="nav-item" data-tab="settings">
-      <span class="nav-icon">◎</span>设置
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>设置
     </div>
     <div class="nav-item" data-tab="history">
-      <span class="nav-icon">○</span>记录
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>记录
     </div>
   </div>
 </div>
@@ -820,8 +940,9 @@ html, body {
       <label>单价</label>
       <input class="input" id="editPrice" type="number" min="0" step="0.5">
     </div>
+    <div class="color-swatches" id="editSwatches"></div>
     <div class="form-row">
-      <label>颜色</label>
+      <label>自定义</label>
       <input type="color" class="color-input" id="editColor" style="width:60px;">
     </div>
     <input type="hidden" id="editId">
@@ -838,7 +959,7 @@ html, body {
     <h3>专业版功能</h3>
     <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
       免费版最多添加 <b>6 个产品</b>，仅支持 <b>6 宫格</b>模板。<br>
-      升级专业版可解锁全部 20 个产品位和 6/10/20/40 全部宫格。
+      升级专业版可解锁 10/20/40 全部宫格。
     </p>
     <p style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;">
       如需购买激活码，请联系微信客服获取。
@@ -854,13 +975,25 @@ html, body {
 <div class="modal-overlay" id="modalStockSetup">
   <div class="modal" style="max-width:400px;">
     <h3>📦 设置初始库存</h3>
-    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">
+    <p style="font-size:var(--fs-xs);color:var(--text-secondary);margin-bottom:10px;">
       登记今天每种产品带了多少件
     </p>
     <div class="stock-list" id="stockList"></div>
     <div class="stock-actions">
       <button class="btn btn-outline" id="btnStockReuse">📋 沿用上次剩余库存</button>
       <button class="btn btn-primary" id="btnStockConfirm">✅ 确认，开始售卖</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for reset-today confirmation (D1) -->
+<div class="modal-overlay" id="modalResetConfirm">
+  <div class="modal">
+    <h3>重置今日计数</h3>
+    <p id="resetConfirmText" style="font-size:14px;color:var(--text-secondary);margin-bottom:4px;line-height:1.6;"></p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="btnResetCancel">取消</button>
+      <button class="btn btn-danger" id="btnResetConfirm">清空</button>
     </div>
   </div>
 </div>
@@ -905,6 +1038,8 @@ function loadState() {
     state.settings = state.settings || { borderRadius: 12, fontSize: 16, soundEnabled: true };
     if (state.settings.soundEnabled === undefined) state.settings.soundEnabled = true;
     if (!state.settings.mode) state.settings.mode = 'add';
+    if (state.settings.hideRevenue === undefined) state.settings.hideRevenue = false;
+    if (!state.settings.theme) state.settings.theme = 'auto';
     state.history = state.history || {};
     state.todayCounts = state.todayCounts || {};
     state.todayStocks = state.todayStocks || {};
@@ -1198,23 +1333,35 @@ function switchTab(tab) {
 function updateTopBar() {
   const total = getTodayTotal(state);
   const revenue = calcDayRevenue(state);
-  const modeHtml = '<span class="mode-badge ' + state.settings.mode + '">' + (state.settings.mode === 'sub' ? '减法' : '加法') + '</span>';
+  const modeHtml = '<span class="mode-badge ' + state.settings.mode + '">' + (state.settings.mode === 'sub' ? '库存' : '卖出') + '</span>';
   $topDate.innerHTML = '<span class="version-badge ' + (isPro() ? 'pro' : 'free') + '" id="topBadge">' + (isPro() ? 'PRO' : '免费版') + '</span>' + modeHtml + ' ' + state.todayDate;
+  // B1: tap revenue to mask it from onlookers; B2: label follows mode
+  const revText = state.settings.hideRevenue ? '¥ ∗∗∗' : '¥' + revenue.toFixed(1);
+  document.getElementById('topRevLabel').textContent = state.settings.mode === 'sub' ? '已售' : '收入';
   if (state.settings.mode === 'sub') {
     const remaining = state.products.reduce((s, p) => s + (state.todayStocks[p.id] || 0), 0);
     $topTotal.textContent = '剩余 ' + remaining + ' 件';
-    $topRevenue.textContent = '售出 ¥' + revenue.toFixed(1);
   } else {
     $topTotal.textContent = total + ' 件';
-    $topRevenue.textContent = '¥' + revenue.toFixed(1);
   }
+  $topRevenue.innerHTML = (state.settings.hideRevenue ? EYE_OFF_SVG : EYE_SVG) + '<span>' + revText + '</span>';
 }
+
+// B1: eye / eye-off icons for the revenue mask toggle
+const EYE_SVG = '<svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_SVG = '<svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+$topRevenue.addEventListener('click', () => {
+  state.settings.hideRevenue = !state.settings.hideRevenue;
+  saveState(state);
+  updateTopBar();
+});
 updateTopBar();
 
 // ==================== GRID RENDERING ====================
 function renderGrid() {
   $grid.className = 'grid-container grid-' + state.template;
   if (layoutEditMode) $grid.classList.add('edit-layout');
+  document.getElementById('editBanner').classList.toggle('show', layoutEditMode); // C3
   $grid.innerHTML = '';
 
   const maxSlots = parseInt(state.template);
@@ -1226,6 +1373,7 @@ function renderGrid() {
     const btn = document.createElement('div');
     btn.className = 'product-btn';
     btn.style.background = p.color;
+    if (isLightColor(p.color)) btn.classList.add('dark-text');
     if (p.colSpan > 1) btn.style.gridColumn = 'span ' + p.colSpan;
     if (p.rowSpan > 1) btn.style.gridRow = 'span ' + p.rowSpan;
     btn.dataset.pid = p.id;
@@ -1248,10 +1396,9 @@ function renderGrid() {
     const revLabel = subMode ? '售出 ' : '';
 
     btn.innerHTML = `
-      <span class="btn-price-tag">¥${p.price}</span>
       <span class="btn-name">${escHtml(p.name)}</span>
       <span class="btn-count">${countLabel}${count}</span>
-      <span class="btn-revenue">${revLabel}¥${revenue.toFixed(1)}</span>
+      <span class="btn-revenue">${revLabel}¥${revenue.toFixed(1)} · ¥${p.price}/件</span>
       <div class="resize-handle"></div>
     `;
 
@@ -1268,11 +1415,29 @@ function renderGrid() {
   for (let i = products.length; i < maxSlots; i++) {
     const empty = document.createElement('div');
     empty.className = 'empty-slot';
-    empty.textContent = '+';
+    empty.textContent = '＋ 添加产品';
     empty.addEventListener('click', () => {
+      // A6: land on the add-product form, ready to type
       switchTab('settings');
+      setTimeout(() => {
+        document.getElementById('addProductForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('newName').focus();
+      }, 100);
     });
     $grid.appendChild(empty);
+  }
+
+  // A7: sub mode with no stock registered at all — show setup guide above grid
+  const oldGuide = document.getElementById('stockGuide');
+  if (oldGuide) oldGuide.remove();
+  if (subMode && products.length > 0 &&
+      products.every(p => state.todayStocks[p.id] === undefined || state.todayStocks[p.id] === null)) {
+    const g = document.createElement('div');
+    g.id = 'stockGuide';
+    g.className = 'stock-guide';
+    g.innerHTML = '📦 今天带了多少货？<b>点这里先登记库存</b>';
+    g.addEventListener('click', openStockSetup);
+    document.getElementById('pageCount').insertBefore(g, $grid);
   }
 }
 
@@ -1280,6 +1445,16 @@ function escHtml(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
+}
+
+// A3: pick black/white text by background luminance (YIQ)
+function isLightColor(hex) {
+  const c = (hex || '').replace('#', '');
+  if (c.length !== 6) return false;
+  const r = parseInt(c.substr(0, 2), 16);
+  const g = parseInt(c.substr(2, 2), 16);
+  const b = parseInt(c.substr(4, 2), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150;
 }
 
 // ==================== COUNT INTERACTIONS ====================
@@ -1301,6 +1476,14 @@ function logClick(pid, delta) {
     delta: delta,
     time: getTimeStr(),
   });
+}
+
+// A4: restartable flash — remove, force reflow, re-add so rapid taps re-trigger
+function flashBtn(btn, type) {
+  btn.classList.remove('flash-inc', 'flash-dec');
+  void btn.offsetWidth;
+  btn.classList.add(type);
+  setTimeout(() => btn.classList.remove(type), 300);
 }
 
 function onBtnPointerDown(e) {
@@ -1326,8 +1509,7 @@ function onBtnPointerDown(e) {
       state.todayStocks[pid]++;
       logClick(pid, +1);
       updateBtnDisplay(btn, pid);
-      btn.classList.add('flash-inc');
-      setTimeout(() => btn.classList.remove('flash-inc'), 200);
+      flashBtn(btn, 'flash-inc');
       if (navigator.vibrate) navigator.vibrate(20);
       playIncSound();
       saveState(state);
@@ -1338,8 +1520,7 @@ function onBtnPointerDown(e) {
         state.todayCounts[pid]--;
         logClick(pid, -1);
         updateBtnDisplay(btn, pid);
-        btn.classList.add('flash-dec');
-        setTimeout(() => btn.classList.remove('flash-dec'), 200);
+        flashBtn(btn, 'flash-dec');
         if (navigator.vibrate) navigator.vibrate([25, 50, 25]);
         playDecSound();
         saveState(state);
@@ -1357,7 +1538,7 @@ function onBtnPointerDown(e) {
     if (subMode) {
       // Subtraction mode: short press = -1 (sell one)
       if (state.todayStocks[pid] === undefined || state.todayStocks[pid] === null) {
-        showToast('请先设置初始库存');
+        openStockSetup(); // A7: unset stock jumps straight into setup
         return;
       }
       if (state.todayStocks[pid] <= 0) {
@@ -1367,8 +1548,7 @@ function onBtnPointerDown(e) {
       state.todayStocks[pid]--;
       logClick(pid, -1);
       updateBtnDisplay(btn, pid);
-      btn.classList.add('flash-dec');
-      setTimeout(() => btn.classList.remove('flash-dec'), 200);
+      flashBtn(btn, 'flash-dec');
       if (navigator.vibrate) navigator.vibrate(10);
       playDecSound();
       saveState(state);
@@ -1378,8 +1558,7 @@ function onBtnPointerDown(e) {
       state.todayCounts[pid] = (state.todayCounts[pid] || 0) + 1;
       logClick(pid, +1);
       updateBtnDisplay(btn, pid);
-      btn.classList.add('flash-inc');
-      setTimeout(() => btn.classList.remove('flash-inc'), 200);
+      flashBtn(btn, 'flash-inc');
       if (navigator.vibrate) navigator.vibrate(20);
       playIncSound();
       saveState(state);
@@ -1406,7 +1585,7 @@ function updateBtnDisplay(btn, pid) {
     btn.querySelector('.btn-count').textContent = stock;
     const totalDelta = (state.todayClicks || []).filter(c => c.name === p.name).reduce((s, c) => s + c.delta, 0);
     const netSold = Math.max(0, -totalDelta);
-    btn.querySelector('.btn-revenue').textContent = '售出 ¥' + (netSold * p.price).toFixed(1);
+    btn.querySelector('.btn-revenue').textContent = '售出 ¥' + (netSold * p.price).toFixed(1) + ' · ¥' + p.price + '/件';
     // Low stock classes
     if (typeof stock === 'number' && stock < 2 && stock > 0) btn.classList.add('low-stock');
     else btn.classList.remove('low-stock');
@@ -1415,7 +1594,7 @@ function updateBtnDisplay(btn, pid) {
   } else {
     const count = state.todayCounts[pid] || 0;
     btn.querySelector('.btn-count').textContent = count;
-    btn.querySelector('.btn-revenue').textContent = '¥' + (count * p.price).toFixed(1);
+    btn.querySelector('.btn-revenue').textContent = '¥' + (count * p.price).toFixed(1) + ' · ¥' + p.price + '/件';
   }
 }
 
@@ -1498,6 +1677,7 @@ function onReorderPointerDown(e) {
     // Create floating clone
     const clone = document.createElement('div');
     clone.className = 'drag-clone';
+    if (isLightColor(state.products[idx].color)) clone.style.color = '#1a1a2e';
     clone.style.width = rect.width + 'px';
     clone.style.height = rect.height + 'px';
     clone.style.background = state.products[idx].color;
@@ -1614,23 +1794,25 @@ function cancelReorder() {
 
 // ==================== SETTINGS RENDERING ====================
 function renderSettings() {
-  // Products
+  // Products (C6: row tap = edit, icon button = delete)
   $productList.innerHTML = state.products.map((p, i) => `
-    <div class="product-item">
+    <div class="product-item" data-idx="${i}">
       <div class="product-item-color" style="background:${p.color}"></div>
       <div class="product-item-info">
         <div class="product-item-name">${escHtml(p.name)}</div>
         <div class="product-item-price">¥${p.price} · ${state.todayCounts[p.id]||0}件</div>
       </div>
       <div class="product-item-actions">
-        <button class="btn btn-outline btn-sm" data-action="edit" data-idx="${i}">编辑</button>
-        <button class="btn btn-danger btn-sm" data-action="delete" data-idx="${i}">删除</button>
+        <button class="btn btn-danger btn-icon-lg" data-action="delete" data-idx="${i}" aria-label="删除 ${escHtml(p.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>
       </div>
     </div>
   `).join('');
 
-  $productList.querySelectorAll('[data-action="edit"]').forEach(btn => {
-    btn.addEventListener('click', () => openEditModal(parseInt(btn.dataset.idx)));
+  $productList.querySelectorAll('.product-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="delete"]')) return;
+      openEditModal(parseInt(item.dataset.idx));
+    });
   });
   $productList.querySelectorAll('[data-action="delete"]').forEach(btn => {
     btn.addEventListener('click', () => deleteProduct(parseInt(btn.dataset.idx)));
@@ -1662,7 +1844,10 @@ function renderSettings() {
   $soundToggle.classList.toggle('on', state.settings.soundEnabled);
 
   // Mode toggle
-  document.querySelectorAll('.mode-opt').forEach(o => o.classList.toggle('active', o.dataset.mode === state.settings.mode));
+  document.querySelectorAll('.mode-opt[data-mode]').forEach(o => o.classList.toggle('active', o.dataset.mode === state.settings.mode));
+
+  // Theme toggle (E3)
+  document.querySelectorAll('#themeToggle .mode-opt').forEach(o => o.classList.toggle('active', o.dataset.theme === (state.settings.theme || 'auto')));
 
   // Stock setup button — show/hide based on mode
   const stockBtn = document.getElementById('btnStockSetupSettings');
@@ -1719,6 +1904,28 @@ function renderVersionInfo() {
   }
 }
 
+// C4: preset color swatches — saturated colors that pass white-text contrast
+const PRESET_COLORS = ['#4f46e5', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#d97706', '#059669', '#0d9488', '#0891b2', '#1d4ed8'];
+
+function renderSwatches(containerId, inputId) {
+  const cont = document.getElementById(containerId);
+  const input = document.getElementById(inputId);
+  if (!cont || !input) return;
+  const current = (input.value || '').toLowerCase();
+  cont.innerHTML = PRESET_COLORS.map(c =>
+    `<div class="swatch${current === c ? ' selected' : ''}" data-c="${c}" style="background:${c}"></div>`
+  ).join('');
+  cont.querySelectorAll('.swatch').forEach(s => {
+    s.addEventListener('click', () => {
+      input.value = s.dataset.c;
+      cont.querySelectorAll('.swatch').forEach(x => x.classList.toggle('selected', x === s));
+    });
+  });
+}
+renderSwatches('newSwatches', 'newColor');
+document.getElementById('newColor').addEventListener('input', () => renderSwatches('newSwatches', 'newColor'));
+document.getElementById('editColor').addEventListener('input', () => renderSwatches('editSwatches', 'editColor'));
+
 // Product CRUD
 document.getElementById('btnAdd').addEventListener('click', () => {
   if (!isPro() && state.products.length >= 6) {
@@ -1750,6 +1957,7 @@ function openEditModal(idx) {
   document.getElementById('editName').value = p.name;
   document.getElementById('editPrice').value = p.price;
   document.getElementById('editColor').value = p.color;
+  renderSwatches('editSwatches', 'editColor');
   $modalEdit.classList.add('show');
 }
 
@@ -1971,27 +2179,46 @@ document.getElementById('modeToggle').addEventListener('click', (e) => {
   const newMode = opt.dataset.mode;
   if (newMode === state.settings.mode) return;
   state.settings.mode = newMode;
-  document.querySelectorAll('.mode-opt').forEach(o => o.classList.toggle('active', o.dataset.mode === newMode));
+  document.querySelectorAll('.mode-opt[data-mode]').forEach(o => o.classList.toggle('active', o.dataset.mode === newMode));
   saveState(state);
+  renderGrid();
+  updateTopBar();
   if (newMode === 'sub' && Object.keys(state.todayStocks).length === 0) {
     openStockSetup();
-  } else {
-    renderGrid();
-    updateTopBar();
   }
   renderSettings();
-  showToast(newMode === 'sub' ? '已切换到减法模式' : '已切换到加法模式');
+  showToast(newMode === 'sub' ? '库存倒数：先登记库存，点一下卖出 1 件' : '卖出计数：点一下 +1，从 0 累加');
 });
 
 // Stock setup button in settings (static, bind once)
 document.getElementById('btnStockSetupSettings').addEventListener('click', openStockSetup);
+
+// Theme toggle (E3)
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', state.settings.theme || 'auto');
+}
+document.getElementById('themeToggle').addEventListener('click', (e) => {
+  const opt = e.target.closest('.mode-opt');
+  if (!opt) return;
+  state.settings.theme = opt.dataset.theme;
+  document.querySelectorAll('#themeToggle .mode-opt').forEach(o => o.classList.toggle('active', o === opt));
+  applyTheme();
+  saveState(state);
+});
 
 // Layout toggle
 $layoutToggle.addEventListener('click', () => {
   layoutEditMode = !layoutEditMode;
   $layoutToggle.classList.toggle('on', layoutEditMode);
   renderGrid();
-  showToast(layoutEditMode ? '布局编辑模式：拖拽按钮右下角调整大小' : '布局编辑已关闭');
+  showToast(layoutEditMode ? '布局编辑已开启，回到计数页拖动调整' : '布局编辑已关闭');
+});
+
+// C3: banner's done button exits edit mode from the count page
+document.getElementById('btnEditDone').addEventListener('click', () => {
+  layoutEditMode = false;
+  $layoutToggle.classList.remove('on');
+  renderGrid();
 });
 
 // Appearance sliders
@@ -2010,13 +2237,46 @@ $fontSizeSlider.addEventListener('input', () => {
 $fontSizeSlider.addEventListener('change', () => saveState(state));
 
 // ==================== HISTORY ====================
+// D2: live "today" card at the top of the history page (display only)
+function renderTodayCard() {
+  const subMode = state.settings.mode === 'sub';
+  let rows = '';
+  state.products.forEach(p => {
+    let display;
+    if (subMode) {
+      const stock = state.todayStocks[p.id];
+      const totalDelta = (state.todayClicks || []).filter(c => c.name === p.name).reduce((s, c) => s + c.delta, 0);
+      const sold = Math.max(0, -totalDelta);
+      if (stock === undefined && sold === 0) return;
+      display = (stock !== undefined ? '剩余' + stock + '件 ' : '') + '售出' + sold + '件 ¥' + (sold * p.price).toFixed(1);
+    } else {
+      const c = state.todayCounts[p.id] || 0;
+      if (c === 0) return;
+      display = c + '件 ¥' + (c * p.price).toFixed(1);
+    }
+    rows += '<div class="history-row"><span class="history-row-name"><span class="history-row-dot" style="background:' + p.color + '"></span>' + escHtml(p.name) + '</span><span class="history-row-count">' + display + '</span></div>';
+  });
+  if (!rows) return '';
+  const total = getTodayTotal(state);
+  const revenue = calcDayRevenue(state);
+  return `
+    <div class="history-day">
+      <div class="history-day-header">
+        <span class="history-day-date">今日（实时）<span class="mode-badge ${state.settings.mode}">${subMode ? '库存' : '卖出'}</span></span>
+        <span class="history-day-total">${subMode ? '售出' : ''}${total}件 · ¥${revenue.toFixed(1)}</span>
+      </div>
+      ${rows}
+    </div>`;
+}
+
 function renderHistory() {
   const dates = Object.keys(state.history).sort().reverse();
-  if (dates.length === 0) {
+  const todayCard = renderTodayCard();
+  if (dates.length === 0 && !todayCard) {
     $historyList.innerHTML = '<div class="history-empty">暂无历史记录<br><small>计数数据会在每天自动归档</small></div>';
     return;
   }
-  $historyList.innerHTML = dates.map(date => {
+  $historyList.innerHTML = todayCard + dates.map(date => {
     const day = state.history[date];
     const dayMode = day.mode || 'add';
     const counts = day.counts || {};
@@ -2033,7 +2293,7 @@ function renderHistory() {
     return `
       <div class="history-day">
         <div class="history-day-header">
-          <span class="history-day-date">${date} <span class="mode-badge ${dayMode}">${dayMode === 'sub' ? '减法' : '加法'}</span></span>
+          <span class="history-day-date">${date} <span class="mode-badge ${dayMode}">${dayMode === 'sub' ? '库存' : '卖出'}</span></span>
           <span class="history-day-total">${label}${total}件 · ¥${(day.totalRevenue||0).toFixed(1)}</span>
         </div>
         ${entries.map(([pid, val]) => {
@@ -2057,9 +2317,22 @@ function renderHistory() {
   }).join('');
 }
 
-// Reset today
+// Reset today (D1: app-styled confirm modal instead of native confirm)
+const $modalReset = document.getElementById('modalResetConfirm');
 document.getElementById('btnResetToday').addEventListener('click', () => {
-  if (!confirm('确定要重置今日所有计数吗？此操作不可撤销。')) return;
+  const n = getTodayTotal(state);
+  document.getElementById('resetConfirmText').textContent =
+    '将清空今日 ' + n + ' 件记录（含全部流水），此操作不可恢复。';
+  $modalReset.classList.add('show');
+});
+document.getElementById('btnResetCancel').addEventListener('click', () => {
+  $modalReset.classList.remove('show');
+});
+$modalReset.addEventListener('click', (e) => {
+  if (e.target === $modalReset) $modalReset.classList.remove('show');
+});
+document.getElementById('btnResetConfirm').addEventListener('click', () => {
+  $modalReset.classList.remove('show');
   state.todayCounts = {};
   state.todayStocks = {};
   state.todayClicks = [];
@@ -2135,6 +2408,7 @@ function showToast(msg) {
 }
 
 // ==================== APPLY SETTINGS ON LOAD ====================
+applyTheme();
 document.documentElement.style.setProperty('--radius', state.settings.borderRadius + 'px');
 document.documentElement.style.setProperty('--font-size', state.settings.fontSize + 'px');
 $radiusSlider.value = state.settings.borderRadius;
