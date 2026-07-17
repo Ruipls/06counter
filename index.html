@@ -166,7 +166,19 @@ html, body {
   opacity: 0.8;
   margin-top: 3px;
   font-weight: 500;
+  max-width: 92%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* 高密度宫格降字号，防小卡片溢出（L2） */
+.grid-20 .product-btn .btn-count { font-size: calc(var(--font-size) * 1.7); }
+.grid-20 .product-btn .btn-name  { font-size: calc(var(--font-size) * 0.75); }
+.grid-20 .product-btn .btn-revenue { font-size: calc(var(--font-size) * 0.55); }
+.grid-40 .product-btn .btn-count { font-size: calc(var(--font-size) * 1.3); }
+.grid-40 .product-btn .btn-name  { font-size: calc(var(--font-size) * 0.7); }
+.grid-40 .product-btn .btn-revenue { font-size: calc(var(--font-size) * 0.5); }
 /* Light-background buttons get dark text (A3, YIQ-based) */
 .product-btn.dark-text { color: #1a1a2e; }
 .product-btn.dark-text .btn-name,
@@ -895,6 +907,11 @@ html, body {
           <span class="toggle-label">点击音效</span>
           <div class="toggle on" id="soundToggle"></div>
         </div>
+        <div class="slider-row">
+          <label>音量</label>
+          <input type="range" id="volumeSlider" min="10" max="100" value="50" step="5">
+          <span class="slider-val" id="volumeVal">50%</span>
+        </div>
       </div>
 
       <!-- Version -->
@@ -1040,6 +1057,7 @@ function loadState() {
     if (!state.settings.mode) state.settings.mode = 'add';
     if (state.settings.hideRevenue === undefined) state.settings.hideRevenue = false;
     if (!state.settings.theme) state.settings.theme = 'auto';
+    if (state.settings.soundVolume === undefined) state.settings.soundVolume = 0.5;
     state.history = state.history || {};
     state.todayCounts = state.todayCounts || {};
     state.todayStocks = state.todayStocks || {};
@@ -1255,6 +1273,11 @@ window.addEventListener('pageshow', (e) => {
   }
 });
 
+function getSoundVolume() {
+  const v = state.settings.soundVolume;
+  return v === undefined ? 0.5 : v;
+}
+
 function playIncSound() {
   if (!state.settings.soundEnabled) return;
   try {
@@ -1266,7 +1289,7 @@ function playIncSound() {
     gain.connect(ctx.destination);
     osc.frequency.value = 1200;
     osc.type = 'sine';
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.setValueAtTime(getSoundVolume(), ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.08);
@@ -1284,7 +1307,7 @@ function playDecSound() {
     gain.connect(ctx.destination);
     osc.frequency.value = 400;
     osc.type = 'triangle';
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.setValueAtTime(getSoundVolume(), ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.12);
@@ -1840,8 +1863,10 @@ function renderSettings() {
   $radiusVal.textContent = state.settings.borderRadius + 'px';
   $fontSizeVal.textContent = state.settings.fontSize + 'px';
 
-  // Sound toggle
+  // Sound toggle + volume
   $soundToggle.classList.toggle('on', state.settings.soundEnabled);
+  document.getElementById('volumeSlider').value = Math.round(getSoundVolume() * 100);
+  document.getElementById('volumeVal').textContent = Math.round(getSoundVolume() * 100) + '%';
 
   // Mode toggle
   document.querySelectorAll('.mode-opt[data-mode]').forEach(o => o.classList.toggle('active', o.dataset.mode === state.settings.mode));
@@ -2236,6 +2261,18 @@ $fontSizeSlider.addEventListener('input', () => {
 });
 $fontSizeSlider.addEventListener('change', () => saveState(state));
 
+// Volume slider — preview the level on release so it can be judged by ear
+const $volumeSlider = document.getElementById('volumeSlider');
+const $volumeVal = document.getElementById('volumeVal');
+$volumeSlider.addEventListener('input', () => {
+  state.settings.soundVolume = parseInt($volumeSlider.value) / 100;
+  $volumeVal.textContent = $volumeSlider.value + '%';
+});
+$volumeSlider.addEventListener('change', () => {
+  saveState(state);
+  playIncSound();
+});
+
 // ==================== HISTORY ====================
 // D2: live "today" card at the top of the history page (display only)
 function renderTodayCard() {
@@ -2415,6 +2452,8 @@ $radiusSlider.value = state.settings.borderRadius;
 $fontSizeSlider.value = state.settings.fontSize;
 $radiusVal.textContent = state.settings.borderRadius + 'px';
 $fontSizeVal.textContent = state.settings.fontSize + 'px';
+$volumeSlider.value = Math.round(getSoundVolume() * 100);
+$volumeVal.textContent = Math.round(getSoundVolume() * 100) + '%';
 
 // ==================== INITIAL RENDER ====================
 renderGrid();
