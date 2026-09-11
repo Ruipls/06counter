@@ -82,6 +82,10 @@ npm run format:check
 
 ## 发布
 
-开发分支：`codex/v3-market-checkout`。合入 `main` 会触发现有 GitHub Pages 发布流程。
+开发与发布分支：`codex/v3-market-checkout`。GitHub Pages 的 source 已设为该分支的根目录，推送此分支会发布新版。
+
+正式地址：https://ruipls.github.io/06counter/ 。支持手机通过 HTTPS 访问。
+
+用户 2026-09-11 明确要求暂不把新版留在 `main`。`main` 已通过恢复提交 `b067a7a` 恢复为 `f541f6e` 的原版文件内容，保留 Git 历史；没有强推或改写历史。后续迭代只推新版分支，不合入 `main`、不切回 Pages 发布源，除非用户另行明确要求。将来若要把新版正式并入 `main`，需处理该恢复提交，不能假设普通 merge 会重新带回被撤销的改动。
 
 每次发布须更新 `sw.js` 的 `CACHE_NAME`。新 worker 等现有页面全部关闭后生效，避免结算中途替换模块。首次联网打开并完成缓存后才可离线使用。发布前建议补做 iPhone Safari 真机触控、添加主屏幕和 PDF 下载验收。
