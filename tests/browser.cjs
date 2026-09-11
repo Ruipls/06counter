@@ -105,13 +105,39 @@ async function importFile(p, file) {
     assert.equal((await state(p)).cart.length, 0);
     await p.screenshot({ path: path.join(OUT, "04-success.png") });
     await click(p, "success-ledger");
-    assert.equal(await p.locator(".ledger-table tbody tr").count(), 1);
+    assert.match(await p.locator("main").innerText(), /贴纸套装/);
+    assert.match(await p.locator("main").innerText(), /¥15 × 2/);
+    assert.match(await p.locator("main").innerText(), /¥30/);
+    assert.match(await p.locator("main").innerText(), /手帐本 A/);
+    assert.equal(await p.locator(".ledger-order").count(), 1);
     await p.screenshot({ path: path.join(OUT, "05-ledger.png") });
     let download = p.waitForEvent("download");
-    await click(p, "export-pdf");
+    await click(p, "export-excel");
     let file = await download;
-    await file.saveAs(path.join(OUT, "sales.pdf"));
-    assert.match(fs.readFileSync(path.join(OUT, "sales.pdf"), "utf8"), /^%PDF/);
+    await file.saveAs(path.join(OUT, "sales.xlsx"));
+    const book = XLSX.read(fs.readFileSync(path.join(OUT, "sales.xlsx")), {
+      type: "buffer",
+    });
+    assert.deepEqual(book.SheetNames, ["销售汇总", "订单流水", "商品明细"]);
+    const details = XLSX.utils.sheet_to_json(book.Sheets["商品明细"]);
+    assert.equal(details.length, 2);
+    assert.deepEqual(
+      details.map((r) => [
+        r["商品名称"],
+        r["单价（元）"],
+        r["数量"],
+        r["小计（元）"],
+      ]),
+      [
+        ["贴纸套装", 15, 2, 30],
+        ["手帐本 A", 56, 1, 56],
+      ],
+    );
+    assert.equal(details[0]["订单编号"], details[1]["订单编号"]);
+    const summary = XLSX.utils.sheet_to_json(book.Sheets["销售汇总"])[0];
+    assert.equal(summary["销售总额（元）"], 86);
+    assert.equal(summary["成交笔数"], 1);
+    assert.equal(summary["商品总件数"], 3);
     await nav(p, "products");
     await p.screenshot({ path: path.join(OUT, "06-products.png") });
     await importFile(
@@ -240,7 +266,7 @@ async function importFile(p, file) {
     }
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: checkout, persistence, double receipt, XLSX/XLS, validation, CRUD, layout, backup, PDF, storage failure and responsive UI",
+      "PASS: checkout, persistence, double receipt, XLSX/XLS, validation, CRUD, layout, backup, Excel details, storage failure and responsive UI",
     );
     await context.close();
     // Verify old data is copied and retained, and old sales are not fabricated.
@@ -283,12 +309,12 @@ async function importFile(p, file) {
     await importFile(op, fixture("offline.xlsx", sample));
     await nav(op, "ledger");
     download = op.waitForEvent("download");
-    await click(op, "export-pdf");
+    await click(op, "export-excel");
     file = await download;
-    await file.saveAs(path.join(OUT, "offline-empty.pdf"));
+    await file.saveAs(path.join(OUT, "offline-empty.xlsx"));
     await offline.close();
     console.log(
-      "PASS: offline reload, offline Excel import, offline PDF export",
+      "PASS: offline reload, offline Excel import, offline Excel export",
     );
   } finally {
     await browser.close();

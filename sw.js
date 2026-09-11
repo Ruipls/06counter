@@ -1,5 +1,5 @@
 // Update this version for every release. All runtime dependencies are local.
-const CACHE_NAME = "counter-checkout-v3-smart-import-20260911";
+const CACHE_NAME = "counter-checkout-v3-ledger-excel-20260912";
 const BASE = new URL("./", self.location.href);
 const ASSETS = [
   "",
@@ -20,7 +20,6 @@ const ASSETS = [
   "src/import-panel.mjs",
   "src/report.mjs",
   "vendor/xlsx.full.min.js",
-  "vendor/jspdf.umd.min.js",
 ].map((path) => new URL(path, BASE).href);
 self.addEventListener("install", (event) =>
   event.waitUntil(

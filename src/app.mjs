@@ -187,7 +187,7 @@ function renderLedger() {
   const orders = dayOrders(store.state.orders, selectedDate),
     s = daySummary(orders),
     today = selectedDate === localDate();
-  return `${top("销售流水", "", button(icon("receipt") + "导出 PDF", "export-pdf", "btn btn-outline"))}<main class="page"><div class="date-picker">${iconButton("left", "前一天", "date-prev")}<input type="date" id="ledgerDate" value="${selectedDate}" aria-label="流水日期">${iconButton("right", "后一天", "date-next")}</div><div class="stats"><div class="stat"><strong class="number">¥${money(s.amount)}</strong><small>${today ? "今日" : "当日"}销售额</small></div><div class="stat"><strong class="number">${s.count}</strong><small>成交笔数</small></div><div class="stat"><strong class="number">${s.quantity}</strong><small>商品件数</small></div></div>${orders.length ? `<div class="table-wrap"><table class="ledger-table"><thead><tr><th>时间</th><th>件数</th><th>金额</th></tr></thead><tbody>${orders.map((o) => `<tr><td>${new Date(o.createdAt).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" })}</td><td>${o.totalQuantity} 件</td><td class="number">¥${money(o.totalAmount)}</td></tr>`).join("")}</tbody></table></div><p class="day-caption">${orders.length} 笔已完成收款 · 按时间倒序</p>` : empty("receipt", "这一天还没有流水", "每次完成收款，记录都会自动保存在这里。")}</main>${nav()}`;
+  return `${top("销售流水", "", button(icon("excel") + "导出 Excel", "export-excel", "btn btn-outline"))}<main class="page"><div class="date-picker">${iconButton("left", "前一天", "date-prev")}<input type="date" id="ledgerDate" value="${selectedDate}" aria-label="流水日期">${iconButton("right", "后一天", "date-next")}</div><div class="stats"><div class="stat"><strong class="number">¥${money(s.amount)}</strong><small>${today ? "今日" : "当日"}销售额</small></div><div class="stat"><strong class="number">${s.count}</strong><small>成交笔数</small></div><div class="stat"><strong class="number">${s.quantity}</strong><small>商品件数</small></div></div>${orders.length ? `<div class="ledger-list">${orders.map((o) => `<article class="ledger-order"><header class="ledger-heading"><time datetime="${esc(o.createdAt)}">${new Date(o.createdAt).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><span>${o.totalQuantity} 件</span><strong class="number">¥${money(o.totalAmount)}</strong></header><ul class="ledger-items">${o.items.map((item) => `<li class="ledger-item"><div><span class="ledger-name">${esc(item.name)}</span><small>¥${money(item.price)} × ${item.quantity}</small></div><strong class="number">¥${money(item.price * item.quantity)}</strong></li>`).join("")}</ul></article>`).join("")}</div><p class="day-caption">${orders.length} 笔已完成收款 · 按时间倒序</p>` : empty("receipt", "这一天还没有流水", "每次完成收款，记录都会自动保存在这里。")}</main>${nav()}`;
 }
 function settingsAction(i, label, action, extra = "") {
   return button(
@@ -198,7 +198,7 @@ function settingsAction(i, label, action, extra = "") {
   );
 }
 function renderSettings() {
-  return `${top("设置", iconButton("left", "返回收银", "navigate", 'data-page="cash"'))}<main class="page"><section class="settings-group"><h2>收银偏好</h2><div class="settings-item">${sizeControl()}</div>${settingsAction("grid", "编辑宫格", "settings-edit")}${settingsAction("undo", "恢复默认宫格布局", "reset-layout")}</section><section class="settings-group"><h2>数据管理</h2>${settingsAction("download", "导出数据备份", "backup")}${settingsAction("upload", "从备份恢复", "restore")}${settingsAction("trash", "清空商品库", "clear-data", 'data-scope="products"')}${settingsAction("trash", "清空销售流水", "clear-data", 'data-scope="orders"')}${button(`<span>${icon("trash")}清空新版全部数据</span>${icon("right")}`, "clear-data", "settings-item danger", 'data-scope="all"')}</section><div class="settings-info">数据保存在当前设备的浏览器中。活动结束后，建议导出备份和当天流水 PDF。<br>旧版计数记录仍保留，可在旧版中查看。</div><a class="settings-item" href="legacy.html"><span>${icon("receipt")}打开旧版计数记录</span>${icon("right")}</a><div class="brand-foot"><strong>06counter</strong>比计算器快，比 POS 简单。<br><br>市集收银 · v3.0</div></main>`;
+  return `${top("设置", iconButton("left", "返回收银", "navigate", 'data-page="cash"'))}<main class="page"><section class="settings-group"><h2>收银偏好</h2><div class="settings-item">${sizeControl()}</div>${settingsAction("grid", "编辑宫格", "settings-edit")}${settingsAction("undo", "恢复默认宫格布局", "reset-layout")}</section><section class="settings-group"><h2>数据管理</h2>${settingsAction("download", "导出数据备份", "backup")}${settingsAction("upload", "从备份恢复", "restore")}${settingsAction("trash", "清空商品库", "clear-data", 'data-scope="products"')}${settingsAction("trash", "清空销售流水", "clear-data", 'data-scope="orders"')}${button(`<span>${icon("trash")}清空新版全部数据</span>${icon("right")}`, "clear-data", "settings-item danger", 'data-scope="all"')}</section><div class="settings-info">数据保存在当前设备的浏览器中。活动结束后，建议导出备份和当天流水 Excel。<br>旧版计数记录仍保留，可在旧版中查看。</div><a class="settings-item" href="legacy.html"><span>${icon("receipt")}打开旧版计数记录</span>${icon("right")}</a><div class="brand-foot"><strong>06counter</strong>比计算器快，比 POS 简单。<br><br>市集收银 · v3.0</div></main>`;
 }
 const importer = new ImportPanel({
   button,
@@ -427,16 +427,16 @@ async function action(target) {
     selectedDate = localDate(d);
     return render();
   }
-  if (a === "export-pdf") {
+  if (a === "export-excel") {
     target.disabled = true;
     target.innerHTML = "正在导出…";
     try {
-      const { exportPDF } = await import("./report.mjs");
-      await exportPDF(
+      const { exportExcel } = await import("./report.mjs");
+      await exportExcel(
         dayOrders(store.state.orders, selectedDate),
         selectedDate,
       );
-      toast("PDF 已生成");
+      toast("Excel 已生成");
     } finally {
       if (page === "ledger") render();
     }

@@ -938,20 +938,66 @@ th {
 tbody tr:last-child td {
   border-bottom: 0;
 }
-.ledger-table td:last-child,
-.ledger-table th:last-child {
-  text-align: right;
+.ledger-list {
+  display: grid;
+  gap: 12px;
 }
-.ledger-table td {
-  padding-top: 15px;
-  padding-bottom: 15px;
+.ledger-order {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
 }
-.ledger-table td:first-child {
-  color: #718098;
+.ledger-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  background: #f1f4f9;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.ledger-heading time {
+  color: #657590;
   font-variant-numeric: tabular-nums;
 }
-.ledger-table td:last-child {
-  font-weight: 650;
+.ledger-heading > strong {
+  margin-left: auto;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.ledger-items {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px;
+}
+.ledger-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  gap: 12px;
+  padding: 12px 0;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.ledger-item:last-child {
+  border-bottom: 0;
+}
+.ledger-name {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.ledger-item small {
+  display: block;
+  margin-top: 5px;
+  color: #657590;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.ledger-item > strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 .day-caption {
   text-align: center;

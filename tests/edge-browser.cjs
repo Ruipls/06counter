@@ -73,7 +73,7 @@ const state = (p) =>
     assert.ok((await state(p)).products[0].colSpan >= 2);
     assert.ok((await state(p)).products[0].rowSpan >= 2);
     await click(p, "edit-grid");
-    // 51 orders span three PDF pages; yesterday is excluded from today's metrics.
+    // 51 orders must all export; other dates are excluded from the selected day.
     const seed = await state(p),
       today = new Date();
     seed.orders = Array.from({ length: 51 }, (_, i) => ({
@@ -149,15 +149,34 @@ const state = (p) =>
     await p.locator('[data-page="order"]').click();
     await p.locator('[data-page="cash"]').first().click();
     await nav(p, "ledger");
-    assert.equal(await p.locator(".ledger-table tbody tr").count(), 51);
+    assert.equal(await p.locator(".ledger-order").count(), 51);
     assert.match(await p.locator(".stat").first().innerText(), /1530/);
     const download = p.waitForEvent("download");
-    await click(p, "export-pdf");
-    await (await download).saveAs(path.join(OUT, "multipage.pdf"));
+    await click(p, "export-excel");
+    await (await download).saveAs(path.join(OUT, "many-orders.xlsx"));
+    const report = XLSX.read(
+      fs.readFileSync(path.join(OUT, "many-orders.xlsx")),
+      { type: "buffer" },
+    );
+    assert.equal(
+      XLSX.utils.sheet_to_json(report.Sheets["订单流水"]).length,
+      51,
+    );
+    assert.equal(
+      XLSX.utils.sheet_to_json(report.Sheets["商品明细"]).length,
+      51,
+    );
+    assert.equal(
+      await p.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      true,
+    );
+    await p.screenshot({ path: path.join(OUT, "ledger-320.png") });
     await click(p, "date-prev");
-    assert.equal(await p.locator(".ledger-table tbody tr").count(), 0);
+    assert.equal(await p.locator(".ledger-order").count(), 0);
     console.log(
-      "PASS: temporary-only checkout, headerless mapping, actual drag/resize, large amounts, daily filter, 51-order PDF",
+      "PASS: temporary-only checkout, headerless mapping, actual drag/resize, large amounts, daily filter, 51-order Excel details",
     );
     await c.close();
   } finally {
