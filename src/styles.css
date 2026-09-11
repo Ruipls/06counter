@@ -1573,3 +1573,13 @@ header h1 {
   flex-shrink: 0;
   background: #fff;
 }
+
+@media (max-width: 380px) {
+  .ledger-header h1 {
+    position: static;
+    transform: none;
+  }
+  .ledger-header .header-side:first-child {
+    display: none;
+  }
+}

@@ -150,6 +150,16 @@ const state = (p) =>
     await p.locator('[data-page="cash"]').first().click();
     await nav(p, "ledger");
     assert.equal(await p.locator(".ledger-order").count(), 51);
+    const titleBox = await p
+      .getByRole("heading", { name: "销售流水", exact: true })
+      .boundingBox();
+    const exportBox = await p
+      .locator('[data-action="export-excel"]')
+      .boundingBox();
+    assert.ok(
+      titleBox.x + titleBox.width + 8 <= exportBox.x,
+      "窄屏标题不能与导出按钮重叠",
+    );
     assert.match(await p.locator(".stat").first().innerText(), /1530/);
     const download = p.waitForEvent("download");
     await click(p, "export-excel");

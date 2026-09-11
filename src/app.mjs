@@ -59,8 +59,8 @@ function toast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), 4200);
 }
-function top(title, left = "", right = "") {
-  return `<header><div class="header-side">${left}</div><h1>${title}</h1><div class="header-side">${right}</div></header>`;
+function top(title, left = "", right = "", className = "") {
+  return `<header class="${className}"><div class="header-side">${left}</div><h1>${title}</h1><div class="header-side">${right}</div></header>`;
 }
 function nav() {
   return `<nav class="bottom-nav" aria-label="主导航">${[
@@ -187,7 +187,7 @@ function renderLedger() {
   const orders = dayOrders(store.state.orders, selectedDate),
     s = daySummary(orders),
     today = selectedDate === localDate();
-  return `${top("销售流水", "", button(icon("excel") + "导出 Excel", "export-excel", "btn btn-outline"))}<main class="page"><div class="date-picker">${iconButton("left", "前一天", "date-prev")}<input type="date" id="ledgerDate" value="${selectedDate}" aria-label="流水日期">${iconButton("right", "后一天", "date-next")}</div><div class="stats"><div class="stat"><strong class="number">¥${money(s.amount)}</strong><small>${today ? "今日" : "当日"}销售额</small></div><div class="stat"><strong class="number">${s.count}</strong><small>成交笔数</small></div><div class="stat"><strong class="number">${s.quantity}</strong><small>商品件数</small></div></div>${orders.length ? `<div class="ledger-list">${orders.map((o) => `<article class="ledger-order"><header class="ledger-heading"><time datetime="${esc(o.createdAt)}">${new Date(o.createdAt).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><span>${o.totalQuantity} 件</span><strong class="number">¥${money(o.totalAmount)}</strong></header><ul class="ledger-items">${o.items.map((item) => `<li class="ledger-item"><div><span class="ledger-name">${esc(item.name)}</span><small>¥${money(item.price)} × ${item.quantity}</small></div><strong class="number">¥${money(item.price * item.quantity)}</strong></li>`).join("")}</ul></article>`).join("")}</div><p class="day-caption">${orders.length} 笔已完成收款 · 按时间倒序</p>` : empty("receipt", "这一天还没有流水", "每次完成收款，记录都会自动保存在这里。")}</main>${nav()}`;
+  return `${top("销售流水", "", button(icon("excel") + "导出 Excel", "export-excel", "btn btn-outline"), "ledger-header")}<main class="page"><div class="date-picker">${iconButton("left", "前一天", "date-prev")}<input type="date" id="ledgerDate" value="${selectedDate}" aria-label="流水日期">${iconButton("right", "后一天", "date-next")}</div><div class="stats"><div class="stat"><strong class="number">¥${money(s.amount)}</strong><small>${today ? "今日" : "当日"}销售额</small></div><div class="stat"><strong class="number">${s.count}</strong><small>成交笔数</small></div><div class="stat"><strong class="number">${s.quantity}</strong><small>商品件数</small></div></div>${orders.length ? `<div class="ledger-list">${orders.map((o) => `<article class="ledger-order"><header class="ledger-heading"><time datetime="${esc(o.createdAt)}">${new Date(o.createdAt).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><span>${o.totalQuantity} 件</span><strong class="number">¥${money(o.totalAmount)}</strong></header><ul class="ledger-items">${o.items.map((item) => `<li class="ledger-item"><div><span class="ledger-name">${esc(item.name)}</span><small>¥${money(item.price)} × ${item.quantity}</small></div><strong class="number">¥${money(item.price * item.quantity)}</strong></li>`).join("")}</ul></article>`).join("")}</div><p class="day-caption">${orders.length} 笔已完成收款 · 按时间倒序</p>` : empty("receipt", "这一天还没有流水", "每次完成收款，记录都会自动保存在这里。")}</main>${nav()}`;
 }
 function settingsAction(i, label, action, extra = "") {
   return button(
