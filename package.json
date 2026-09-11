@@ -1,0 +1,17 @@
+{
+  "name": "06counter",
+  "private": true,
+  "version": "3.0.0",
+  "scripts": {
+    "test": "node --test tests/model.test.mjs",
+    "start": "python3 -m http.server 4173",
+    "test:browser": "node tests/browser.cjs",
+    "test:edges": "node tests/edge-browser.cjs",
+    "format": "prettier --write index.html src tests sw.js manifest.json package.json README.md",
+    "format:check": "prettier --check index.html src tests sw.js manifest.json package.json README.md"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1",
+    "prettier": "3.6.2"
+  }
+}

@@ -10,3 +10,7 @@ Thumbs.db
 memory/
 .claude/
 server.js
+# Development dependencies and test artifacts
+node_modules/
+test-results/
+playwright-report/

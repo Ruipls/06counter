@@ -1,13 +1,13 @@
 {
-  "name": "计数助手",
-  "short_name": "计数助手",
-  "description": "移动端售卖计数工具，快速点击记录销售数量",
-  "start_url": "/06counter/",
-  "scope": "/06counter/",
+  "name": "06counter · 市集收银",
+  "short_name": "06counter",
+  "description": "把商品表导进来，然后像按计算器一样点商品。",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "icon-192.svg",
