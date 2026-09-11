@@ -1,5 +1,5 @@
 // Update this version for every release. All runtime dependencies are local.
-const CACHE_NAME = "counter-checkout-v3-20260911";
+const CACHE_NAME = "counter-checkout-v3-smart-import-20260911";
 const BASE = new URL("./", self.location.href);
 const ASSETS = [
   "",
@@ -16,6 +16,8 @@ const ASSETS = [
   "src/model.mjs",
   "src/utils.mjs",
   "src/import.mjs",
+  "src/import-detect.mjs",
+  "src/import-panel.mjs",
   "src/report.mjs",
   "vendor/xlsx.full.min.js",
   "vendor/jspdf.umd.min.js",

@@ -43,8 +43,7 @@ const state = (p) =>
 async function importFile(p, file) {
   await click(p, "start-import");
   await p.locator("#excelFile").setInputFiles(file);
-  await p.locator("#nameColumn").waitFor();
-  await click(p, "import-preview");
+  await p.locator(".smart-preview").waitFor();
   await click(p, "import-confirm");
 }
 (async () => {
@@ -139,7 +138,7 @@ async function importFile(p, file) {
     );
     await p.locator(".error-box").waitFor();
     assert.equal(
-      await p.locator('[data-action="import-preview"]').isDisabled(),
+      await p.locator('[data-action="import-confirm"]').isDisabled(),
       true,
     );
     await p.screenshot({ path: path.join(OUT, "07-import-error.png") });
@@ -147,15 +146,15 @@ async function importFile(p, file) {
     await p
       .locator("#excelFile")
       .setInputFiles(fixture("preview.xlsx", sample));
-    await p.locator("#nameColumn").waitFor();
+    await p.locator(".smart-preview").waitFor();
     await p.screenshot({ path: path.join(OUT, "08-mapping.png") });
+    await p.locator(".import-advanced summary").click();
     await p.locator("#priceColumn").selectOption("0");
     assert.equal(
-      await p.locator('[data-action="import-preview"]').isDisabled(),
+      await p.locator('[data-action="import-confirm"]').isDisabled(),
       true,
     );
     await p.locator("#priceColumn").selectOption("1");
-    await click(p, "import-preview");
     await p.screenshot({ path: path.join(OUT, "09-preview.png") });
     await p.locator('[data-page="products"]').click();
     await click(p, "add-product");

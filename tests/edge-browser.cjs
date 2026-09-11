@@ -43,11 +43,12 @@ const state = (p) =>
     );
     await click(p, "start-import");
     await p.locator("#excelFile").setInputFiles(xlsx);
+    await p.locator(".smart-preview").waitFor();
+    await p.locator(".import-advanced summary").click();
     await p.locator("#headerSelect").selectOption("-1");
     assert.equal(await p.locator("#nameColumn option").count(), 4);
     await p.locator("#nameColumn").selectOption("2");
     await p.locator("#priceColumn").selectOption("3");
-    await click(p, "import-preview");
     await click(p, "import-confirm");
     assert.equal((await state(p)).products.length, 30);
     await nav(p, "cash");

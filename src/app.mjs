@@ -4,12 +4,11 @@ import {
   money,
   totals,
   localDate,
-  previewRows,
   dayOrders,
   daySummary,
 } from "./model.mjs";
 import { escapeHTML as esc, download } from "./utils.mjs";
-import { readWorkbook, guessColumns, columnCount } from "./import.mjs";
+import { ImportPanel } from "./import-panel.mjs";
 const paths = {
   grid: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
   settings:
@@ -51,14 +50,7 @@ let store,
   editing = false,
   selectedDate = localDate(),
   lastOrder = null,
-  query = "",
-  importData = null,
-  importStep = 1,
-  sheetIndex = 0,
-  headerRow = 0,
-  nameCol = 0,
-  priceCol = 1,
-  importBusy = false;
+  query = "";
 let toastTimer;
 function toast(message) {
   const el = document.querySelector("#toast");
@@ -109,6 +101,7 @@ function empty(i, title, description, action = "") {
   return `<div class="empty"><div class="empty-icon">${icon(i)}</div><h2>${title}</h2><p>${description}</p>${action}</div>`;
 }
 function go(next) {
+  if (page === "import" && next !== "import") importer.reset();
   page = next;
   if (next !== "cash") editing = false;
   render();
@@ -207,55 +200,29 @@ function settingsAction(i, label, action, extra = "") {
 function renderSettings() {
   return `${top("设置", iconButton("left", "返回收银", "navigate", 'data-page="cash"'))}<main class="page"><section class="settings-group"><h2>收银偏好</h2><div class="settings-item">${sizeControl()}</div>${settingsAction("grid", "编辑宫格", "settings-edit")}${settingsAction("undo", "恢复默认宫格布局", "reset-layout")}</section><section class="settings-group"><h2>数据管理</h2>${settingsAction("download", "导出数据备份", "backup")}${settingsAction("upload", "从备份恢复", "restore")}${settingsAction("trash", "清空商品库", "clear-data", 'data-scope="products"')}${settingsAction("trash", "清空销售流水", "clear-data", 'data-scope="orders"')}${button(`<span>${icon("trash")}清空新版全部数据</span>${icon("right")}`, "clear-data", "settings-item danger", 'data-scope="all"')}</section><div class="settings-info">数据保存在当前设备的浏览器中。活动结束后，建议导出备份和当天流水 PDF。<br>旧版计数记录仍保留，可在旧版中查看。</div><a class="settings-item" href="legacy.html"><span>${icon("receipt")}打开旧版计数记录</span>${icon("right")}</a><div class="brand-foot"><strong>06counter</strong>比计算器快，比 POS 简单。<br><br>市集收银 · v3.0</div></main>`;
 }
-function currentPreview() {
-  const rows = importData.sheets[sheetIndex].rows;
-  return previewRows(rows, headerRow, nameCol, priceCol);
-}
-function importSteps() {
-  return `<div class="import-steps">${["上传文件", "匹配字段", "预览导入"].map((name, i) => `<div class="import-step ${importStep >= i + 1 ? "active" : ""}"><b>${i + 1}</b>${name}</div>`).join("")}</div>`;
-}
+const importer = new ImportPanel({
+  button,
+  icon,
+  toast,
+  openDialog,
+  closeDialog: () => dialog.close(),
+  refresh: () => {
+    if (page === "import") render();
+  },
+  onImport: (products) => {
+    store.importProducts(products);
+    query = "";
+    go("products");
+    toast(`成功导入 ${products.length} 件商品，已加入收银宫格`);
+  },
+});
 function renderImport() {
-  let body = "";
-  if (importStep === 1) {
-    body = `${button(icon("upload") + `<strong>${importBusy ? "正在读取文件…" : "选择 Excel 文件"}</strong><span>.xlsx / .xls / .csv · 最大 10 MB</span>`, "choose-excel", "upload-zone", importBusy ? "disabled" : "")}<p class="upload-help">把现有的商品价格表直接导入。下一步选择商品名称和价格所在的列。<br>文件仅在你的设备上读取。</p><div class="table-wrap"><table><thead><tr><th>商品名称</th><th>价格</th></tr></thead><tbody><tr><td>贴纸套装</td><td>15</td></tr><tr><td>手帐本 A</td><td>56</td></tr></tbody></table></div>`;
-  } else {
-    const rows = importData.sheets[sheetIndex].rows,
-      labels = rows[headerRow] || [],
-      colCount = columnCount(rows, headerRow),
-      options = (selected) =>
-        Array.from(
-          { length: colCount },
-          (_, i) =>
-            `<option value="${i}" ${selected === i ? "selected" : ""}>${esc(labels[i] || "列 " + (i + 1))}（${i + 1}）</option>`,
-        ).join("");
-    body = `<div class="file-tag">${icon("excel")}<span>${esc(importData.name)}</span>${button("重选", "import-restart", "text-btn blue")}</div>`;
-    if (importStep === 2) {
-      body += `<label class="field"><span>工作表</span><select id="sheetSelect">${importData.sheets.map((s, i) => `<option value="${i}" ${sheetIndex === i ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label><label class="field"><span>表头所在行</span><select id="headerSelect"><option value="-1" ${headerRow === -1 ? "selected" : ""}>没有表头，从第一行开始</option>${rows
-        .slice(0, 20)
-        .map(
-          (r, i) =>
-            `<option value="${i}" ${headerRow === i ? "selected" : ""}>第 ${i + 1} 行：${esc(r.slice(0, 3).join(" / "))}</option>`,
-        )
-        .join(
-          "",
-        )}</select></label><div class="field-pair"><label class="field"><span>商品名称</span><select id="nameColumn">${options(nameCol)}</select></label><label class="field"><span>价格</span><select id="priceColumn">${options(priceCol)}</select></label></div>`;
-    }
-    let preview;
-    try {
-      preview = currentPreview();
-    } catch (error) {
-      body += `<div class="error-box">${esc(error.message)}</div>`;
-    }
-    if (preview) {
-      body += `<div class="notice"><strong>已识别 ${preview.valid.length} 条有效商品数据</strong>${preview.errors.length ? `${preview.errors.length} 行有误，请修改原表格后重新选择文件。` : "请核对名称和价格，确认后将追加到商品库。"}</div>`;
-      if (preview.errors.length)
-        body += `<div class="error-box">${preview.errors.map((e) => `第 ${e.row} 行：${esc(e.message)}`).join("<br>")}</div>`;
-      body += `<div class="table-wrap import-preview"><table><thead><tr><th>行号</th><th>商品名称</th><th>价格</th></tr></thead><tbody>${preview.valid.map((p) => `<tr><td>${p.row}</td><td>${esc(p.name)}</td><td>¥${money(p.price)}</td></tr>`).join("")}</tbody></table></div>`;
-    }
-    const ready = preview?.valid.length && !preview.errors.length;
-    body += `<div class="button-pair import-bottom">${button("上一步", "import-back", "btn btn-secondary")}${button(importStep === 2 ? "预览导入" : "确认导入", importStep === 2 ? "import-preview" : "import-confirm", "btn btn-primary", ready ? "" : "disabled")}</div>`;
-  }
-  return `${top("导入商品", iconButton("left", "返回商品管理", "navigate", 'data-page="products"'))}<main class="page">${importSteps()}${body}</main>`;
+  return (
+    top(
+      "导入商品",
+      iconButton("left", "返回商品管理", "navigate", 'data-page="products"'),
+    ) + importer.render()
+  );
 }
 function openDialog(title, body, onSubmit) {
   dialog.innerHTML = `<div class="dialog-header"><h2 id="dialogTitle">${title}</h2>${iconButton("close", "关闭弹窗", "close-dialog")}</div>${body}`;
@@ -476,8 +443,7 @@ async function action(target) {
     return;
   }
   if (a === "start-import") {
-    importStep = 1;
-    importData = null;
+    importer.reset();
     return go("import");
   }
   if (a === "choose-excel") {
@@ -485,33 +451,7 @@ async function action(target) {
     input.value = "";
     return input.click();
   }
-  if (a === "import-restart") {
-    importStep = 1;
-    importData = null;
-    return render();
-  }
-  if (a === "import-back") {
-    importStep--;
-    return render();
-  }
-  if (a === "import-preview") {
-    const preview = currentPreview();
-    if (!preview.valid.length || preview.errors.length)
-      throw Error("请先修正表格中的错误");
-    importStep = 3;
-    return render();
-  }
-  if (a === "import-confirm") {
-    if (importStep !== 3) return;
-    const preview = currentPreview();
-    if (preview.errors.length) throw Error("请先修正表格中的错误");
-    store.importProducts(preview.valid);
-    importStep = 1;
-    importData = null;
-    query = "";
-    go("products");
-    toast(`成功导入 ${preview.valid.length} 件商品，已加入收银宫格`);
-  }
+  if (a.startsWith("import-")) return importer.action(a, target);
 }
 document.addEventListener("click", (e) => {
   const target = e.target.closest("[data-action]");
@@ -535,54 +475,14 @@ document.addEventListener("change", (e) => {
       }
       return;
     }
-    if (id === "sheetSelect") {
-      sheetIndex = value;
-      headerRow = 0;
-      const guesses = guessColumns(importData.sheets[sheetIndex].rows, 0);
-      nameCol = guesses.name;
-      priceCol = guesses.price;
-      render();
-    }
-    if (id === "headerSelect") {
-      headerRow = value;
-      const guesses = guessColumns(importData.sheets[sheetIndex].rows, value);
-      nameCol = guesses.name;
-      priceCol = guesses.price;
-      render();
-    }
-    if (id === "nameColumn") {
-      nameCol = value;
-      render();
-    }
-    if (id === "priceColumn") {
-      priceCol = value;
-      render();
-    }
+    importer.change(e.target);
   } catch (error) {
     toast(error.message);
   }
 });
-document.querySelector("#excelFile").addEventListener("change", async (e) => {
+document.querySelector("#excelFile").addEventListener("change", (e) => {
   const file = e.target.files[0];
-  if (!file) return;
-  importBusy = true;
-  render();
-  try {
-    const data = await readWorkbook(file);
-    if (page !== "import") return;
-    importData = data;
-    sheetIndex = 0;
-    headerRow = 0;
-    const guess = guessColumns(data.sheets[0].rows, 0);
-    nameCol = guess.name;
-    priceCol = guess.price;
-    importStep = 2;
-  } catch (error) {
-    toast(error.message);
-  } finally {
-    importBusy = false;
-    if (page === "import") render();
-  }
+  if (file) importer.load(file);
 });
 document.querySelector("#backupFile").addEventListener("change", async (e) => {
   const file = e.target.files[0];
