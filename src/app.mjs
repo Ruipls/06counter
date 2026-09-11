@@ -52,6 +52,7 @@ let store,
   lastOrder = null,
   query = "";
 let toastTimer;
+let cancelLedgerPress = () => {};
 function toast(message) {
   const el = document.querySelector("#toast");
   el.textContent = message;
@@ -107,6 +108,7 @@ function go(next) {
   render();
 }
 function render() {
+  cancelLedgerPress();
   if (
     ["order", "bill"].includes(page) &&
     !store.state.cart.length &&
@@ -187,7 +189,7 @@ function renderLedger() {
   const orders = dayOrders(store.state.orders, selectedDate),
     s = daySummary(orders),
     today = selectedDate === localDate();
-  return `${top("销售流水", "", button(icon("excel") + "导出 Excel", "export-excel", "btn btn-outline"), "ledger-header")}<main class="page"><div class="date-picker">${iconButton("left", "前一天", "date-prev")}<input type="date" id="ledgerDate" value="${selectedDate}" aria-label="流水日期">${iconButton("right", "后一天", "date-next")}</div><div class="stats"><div class="stat"><strong class="number">¥${money(s.amount)}</strong><small>${today ? "今日" : "当日"}销售额</small></div><div class="stat"><strong class="number">${s.count}</strong><small>成交笔数</small></div><div class="stat"><strong class="number">${s.quantity}</strong><small>商品件数</small></div></div>${orders.length ? `<div class="ledger-list">${orders.map((o) => `<article class="ledger-order"><header class="ledger-heading"><time datetime="${esc(o.createdAt)}">${new Date(o.createdAt).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><span>${o.totalQuantity} 件</span><strong class="number">¥${money(o.totalAmount)}</strong></header><ul class="ledger-items">${o.items.map((item) => `<li class="ledger-item"><div><span class="ledger-name">${esc(item.name)}</span><small>¥${money(item.price)} × ${item.quantity}</small></div><strong class="number">¥${money(item.price * item.quantity)}</strong></li>`).join("")}</ul></article>`).join("")}</div><p class="day-caption">${orders.length} 笔已完成收款 · 按时间倒序</p>` : empty("receipt", "这一天还没有流水", "每次完成收款，记录都会自动保存在这里。")}</main>${nav()}`;
+  return `${top("销售流水", "", button("导出 Excel", "export-excel", "btn btn-outline"), "ledger-header")}<main class="page"><div class="date-picker">${iconButton("left", "前一天", "date-prev")}<input type="date" id="ledgerDate" value="${selectedDate}" aria-label="流水日期">${iconButton("right", "后一天", "date-next")}</div><div class="stats"><div class="stat"><strong class="number">¥${money(s.amount)}</strong><small>${today ? "今日" : "当日"}销售额</small></div><div class="stat"><strong class="number">${s.count}</strong><small>成交笔数</small></div><div class="stat"><strong class="number">${s.quantity}</strong><small>商品件数</small></div></div>${orders.length ? `<div class="ledger-list">${orders.map((o) => `<article class="ledger-order" data-order-id="${esc(o.id)}" tabindex="0" aria-label="${esc(new Date(o.createdAt).toLocaleTimeString("zh-CN", { hour12: false }))}，${o.totalQuantity} 件，${money(o.totalAmount)} 元" aria-describedby="ledgerHint"><header class="ledger-heading"><time datetime="${esc(o.createdAt)}">${new Date(o.createdAt).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time><span>${o.totalQuantity} 件</span><strong class="number">¥${money(o.totalAmount)}</strong></header><ul class="ledger-items">${o.items.map((item) => `<li class="ledger-item"><div><span class="ledger-name">${esc(item.name)}</span><small>¥${money(item.price)} × ${item.quantity}</small></div><strong class="number">¥${money(item.price * item.quantity)}</strong></li>`).join("")}</ul></article>`).join("")}</div><p class="day-caption">${orders.length} 笔已完成收款 · 按时间倒序</p><p class="day-caption" id="ledgerHint">长按记录可删除 · 键盘可按 Delete</p>` : empty("receipt", "这一天还没有流水", "每次完成收款，记录都会自动保存在这里。")}</main>${nav()}`;
 }
 function settingsAction(i, label, action, extra = "") {
   return button(
@@ -502,6 +504,64 @@ document.querySelector("#backupFile").addEventListener("change", async (e) => {
     );
   } catch {
     toast("备份无法读取，请选择有效的 JSON 备份文件");
+  }
+});
+function confirmDeleteOrder(id) {
+  const order = store.state.orders.find((o) => o.id === id);
+  if (!order || dialog.open || page !== "ledger") return;
+  confirmAction(
+    "删除这笔流水？",
+    `${esc(new Date(order.createdAt).toLocaleString("zh-CN", { hour12: false }))} · ${order.totalQuantity} 件 · ¥${money(order.totalAmount)}<br>删除后无法撤销，销售汇总和后续导出的 Excel 将同步更新。`,
+    () => {
+      store.deleteOrder(id);
+      if (lastOrder?.id === id) lastOrder = null;
+      toast("该笔流水已删除");
+    },
+    "确认删除",
+  );
+}
+app.addEventListener("pointerdown", (e) => {
+  cancelLedgerPress();
+  const card = e.target.closest(".ledger-order");
+  if (!card || e.button !== 0 || !e.isPrimary || dialog.open) return;
+  const controller = new AbortController();
+  const { signal } = controller;
+  const cleanup = () => {
+    clearTimeout(timer);
+    controller.abort();
+    cancelLedgerPress = () => {};
+  };
+  const timer = setTimeout(() => {
+    cleanup();
+    if (card.isConnected) confirmDeleteOrder(card.dataset.orderId);
+  }, 600);
+  cancelLedgerPress = cleanup;
+  document.addEventListener(
+    "pointermove",
+    (ev) => {
+      if (
+        ev.pointerId === e.pointerId &&
+        Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) > 10
+      )
+        cleanup();
+    },
+    { signal },
+  );
+  for (const type of ["pointerup", "pointercancel"])
+    document.addEventListener(type, cleanup, { signal });
+  document.addEventListener("scroll", cleanup, { capture: true, signal });
+  window.addEventListener("blur", cleanup, { signal });
+  document.addEventListener("visibilitychange", cleanup, { signal });
+});
+app.addEventListener("contextmenu", (e) => {
+  if (e.target.closest(".ledger-order")) e.preventDefault();
+});
+app.addEventListener("keydown", (e) => {
+  const card = e.target.closest(".ledger-order");
+  if (card && e.key === "Delete") {
+    e.preventDefault();
+    cancelLedgerPress();
+    confirmDeleteOrder(card.dataset.orderId);
   }
 });
 let suppressClickUntil = 0;

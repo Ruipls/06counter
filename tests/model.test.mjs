@@ -126,3 +126,31 @@ test("无表头多行表格仍提供第三列和第四列映射", async () => {
     4,
   );
 });
+
+test("删除单笔流水持久化且不影响其他订单和当前购物车", () => {
+  const storage = memory(),
+    store = M.createStore(storage);
+  store.addTemporary("15");
+  const first = store.complete();
+  store.addTemporary("56");
+  const second = store.complete();
+  store.addTemporary("25");
+  assert.equal(typeof store.deleteOrder, "function");
+  store.deleteOrder(first.id);
+  const restored = M.createStore(storage);
+  assert.deepEqual(
+    restored.state.orders.map((o) => o.id),
+    [second.id],
+  );
+  assert.deepEqual(M.daySummary(restored.state.orders), {
+    amount: 5600,
+    count: 1,
+    quantity: 1,
+  });
+  assert.equal(restored.state.cart[0].price, 2500);
+  storage.setItem = () => {
+    throw Error("quota");
+  };
+  assert.throws(() => store.deleteOrder(second.id), /保存/);
+  assert.equal(store.state.orders.length, 1);
+});

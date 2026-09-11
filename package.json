@@ -9,7 +9,8 @@
     "test:edges": "node tests/edge-browser.cjs",
     "format": "prettier --write index.html src tests sw.js manifest.json package.json README.md",
     "format:check": "prettier --check index.html src tests sw.js manifest.json package.json README.md",
-    "test:import": "node tests/import-browser.cjs"
+    "test:import": "node tests/import-browser.cjs",
+    "test:ledger": "node tests/ledger-browser.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1",

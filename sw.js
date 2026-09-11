@@ -1,5 +1,5 @@
 // Update this version for every release. All runtime dependencies are local.
-const CACHE_NAME = "counter-checkout-v3-ledger-excel-20260912-2";
+const CACHE_NAME = "counter-checkout-v3-ledger-delete-20260912";
 const BASE = new URL("./", self.location.href);
 const ASSETS = [
   "",

@@ -310,6 +310,11 @@ export function createStore(storage) {
         return order;
       });
     },
+    deleteOrder(id) {
+      commit((s) => {
+        s.orders = s.orders.filter((order) => order.id !== id);
+      });
+    },
     setGridSize(size) {
       if (!["small", "medium", "large"].includes(size)) return;
       commit((s) => {

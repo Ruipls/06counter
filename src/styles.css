@@ -1583,3 +1583,14 @@ header h1 {
     display: none;
   }
 }
+
+.ledger-order {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-y;
+}
+.ledger-order:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
