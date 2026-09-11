@@ -1,57 +1,44 @@
-// Update this version for every release. All runtime dependencies are local.
-const CACHE_NAME = "counter-checkout-v3-smart-import-20260911";
-const BASE = new URL("./", self.location.href);
+// 每次发版请更新此版本号
+const CACHE_NAME = 'counter-v20260717';
 const ASSETS = [
-  "",
-  "index.html",
-  "legacy.html",
-  "manifest.json",
-  "icon-192.svg",
-  "icon-512.svg",
-  "icon-counter.svg",
-  "icon-grid.svg",
-  "icon-stall.svg",
-  "src/styles.css",
-  "src/app.mjs",
-  "src/model.mjs",
-  "src/utils.mjs",
-  "src/import.mjs",
-  "src/import-detect.mjs",
-  "src/import-panel.mjs",
-  "src/report.mjs",
-  "vendor/xlsx.full.min.js",
-  "vendor/jspdf.umd.min.js",
-].map((path) => new URL(path, BASE).href);
-self.addEventListener("install", (event) =>
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)),
-  ),
-);
-// Let an existing checkout finish before the waiting worker takes over.
-self.addEventListener("activate", (event) =>
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key.startsWith("counter-") && key !== CACHE_NAME)
-            .map((key) => caches.delete(key)),
-        ),
-      )
-      .then(() => self.clients.claim()),
-  ),
-);
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  const url = new URL(event.request.url);
-  if (url.origin !== BASE.origin || !url.pathname.startsWith(BASE.pathname))
-    return;
-  event.respondWith(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      const cached = await cache.match(event.request);
-      if (cached) return cached;
-      return fetch(event.request);
-    }),
+  '/06counter/',
+  '/06counter/index.html',
+  '/06counter/manifest.json',
+  '/06counter/icon-192.svg',
+  '/06counter/icon-512.svg',
+];
+
+// Install: cache all assets
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+  );
+  self.skipWaiting();
+});
+
+// Activate: clean old caches
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+// Fetch: cache-first, network fallback
+self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.match(e.request).then((cached) => {
+      const fetched = fetch(e.request).then((res) => {
+        if (res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+        }
+        return res;
+      });
+      return cached || fetched;
+    })
   );
 });
